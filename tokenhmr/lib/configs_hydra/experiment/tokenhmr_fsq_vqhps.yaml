@@ -16,8 +16,10 @@
 # 31-07-2026 (stab@1° 51% vs the old 63%, stab@5° 13% vs 34%, prior top-1 0.067) — fewer
 # tokens REDUCED stability. Current candidates keep 160 tokens and shrink only the codebook:
 # tokenizer_amass_moyo_fsq_160x512.yaml (A) and ..._160x512_masked.yaml (B, + locality).
-# run_vqhps_method.sh overrides TOKEN_NUM/TOKEN_CLASS_NUM/TOKEN_CODE_DIM from the trained
-# checkpoint's hparams, so the values below are defaults/documentation, not the truth.
+# TOKEN_NUM/TOKEN_CLASS_NUM/TOKEN_CODE_DIM below are defaults/documentation, not the truth:
+# pass the trained tokenizer checkpoint's own hparams as Hydra overrides on the command line,
+# e.g. MODEL.TOKENIZER.TOKEN_NUM=160 MODEL.TOKENIZER.TOKEN_CLASS_NUM=512
+#      MODEL.TOKENIZER.TOKEN_CODE_DIM=3
 # BODY_POSE weight is 0: under the detached hard decode it could not produce a gradient
 # anyway (the decoded body pose is a constant w.r.t. the graph), so zeroing it only skips
 # dead compute.
@@ -51,8 +53,8 @@ MODEL:
     PREDICT_HAND: True
     TOKENIZER:
       # Must match the tokenizer checkpoint (asserted in TokenClassfier). Defaults document
-      # candidate A (160 tokens x [8,8,8] = 512 codes, d=3); run_vqhps_method.sh overrides
-      # these from the checkpoint's own hparams.
+      # candidate A (160 tokens x [8,8,8] = 512 codes, d=3); override these on the command
+      # line with the values from the tokenizer checkpoint's own hparams.
       TOKEN_CODE_DIM: 3
       TOKEN_NUM: 160
       TOKEN_CLASS_NUM: 512
