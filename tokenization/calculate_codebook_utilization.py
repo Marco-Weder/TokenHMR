@@ -57,10 +57,24 @@ def calculate_exact_utilization(pkl_path, ckpt_path, codebook_size=2048, batch_s
     print("="*40)
 
 if __name__ == '__main__':
-    # 1. The PKL file we saw in your previous 'ls' output
-    PKL_FILE = '/home/marco/thesis-HMR/external/tokenhmr/tokenization/results_HumanEva_HDM05_SFU_MPI-Mosh_MOYO.pkl' 
-    
-    # 2. The exact checkpoint path you just provided
-    CKPT_FILE = '/home/marco/thesis-HMR/external/tokenhmr/tokenization/output/tokenization_amass_moyo/tokenization_amass_moyo_ID00_17-03-2026_21-13-53/tokenization_amass_moyo/best_net.pth'
-    
-    calculate_exact_utilization(PKL_FILE, CKPT_FILE)
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Exact codebook utilization of a pose-VQ tokenizer, over the '
+                    'ground-truth poses of a validation results pickle.',
+        epilog='The results pickle is written by utils/eval_poseVQ.py during tokenizer '
+               'validation, as results_<VALLIST>.pkl. Regenerate it by running a '
+               'validation pass of train_poseVQ.py if it is not on disk.')
+    parser.add_argument('--pkl', required=True,
+                        help='validation results pickle holding gt_aa, e.g. '
+                             'results_HumanEva_HDM05_SFU_MPI-Mosh_MOYO.pkl')
+    parser.add_argument('--ckpt', required=True,
+                        help='tokenizer checkpoint, e.g. output/<exp>/best_net.pth')
+    parser.add_argument('--codebook-size', type=int, default=2048,
+                        help='codes in the codebook (default: %(default)s)')
+    parser.add_argument('--batch-size', type=int, default=1024)
+    args = parser.parse_args()
+
+    calculate_exact_utilization(args.pkl, args.ckpt,
+                                codebook_size=args.codebook_size,
+                                batch_size=args.batch_size)

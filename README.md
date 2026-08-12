@@ -1,3 +1,33 @@
+> ## Thesis fork
+>
+> This is a fork of [TokenHMR](https://github.com/saidwivedi/TokenHMR), modified for the
+> bachelor's thesis **"Exploring Latent Representations for Human Mesh Recovery"**
+> (Marco Weder, ETH Zurich).
+>
+> | Branch | Contents |
+> | --- | --- |
+> | `main` | pristine upstream TokenHMR, commit `ededd631`, unmodified |
+> | `thesis` | upstream plus the thesis changes |
+>
+> The complete set of thesis changes is therefore `git diff main..thesis`. They are:
+>
+> - **`tokenization/`** (stage 1, pose tokenizer): an FSQ quantizer, a transformer
+>   encoder-decoder tokenizer with kinematic (graph-Laplacian) positional encoding, a
+>   skeleton-masked attention variant, resumable training, and the latent-space analysis
+>   and visualisation scripts.
+> - **`tokenhmr/`** (stage 2, downstream model): a token cross-entropy loss with
+>   label-purity gating, severed / straight-through / Gumbel training-time decodes,
+>   decoder-aware token targets, token metrics, and the token-ambiguity analysis.
+> - **`thesis_figures/`**: the scripts that produce the figures of the thesis.
+>
+> The project repository, with setup and reproduction instructions, is
+> [Marco-Weder/Exploring-Latent-Representations-for-Human-Mesh-Recovery](https://github.com/Marco-Weder/Exploring-Latent-Representations-for-Human-Mesh-Recovery).
+> Per-result commands are in its `docs/REPRODUCE.md`.
+>
+> Everything below this line is the upstream TokenHMR README.
+
+---
+
 <h2 align="center"> <a href="https://tokenhmr.is.tue.mpg.de">TokenHMR: Advancing Human Mesh Recovery with a Tokenized Pose Representation</a></h2>
 
 <h3 align="center">
