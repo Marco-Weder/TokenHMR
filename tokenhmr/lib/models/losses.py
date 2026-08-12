@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from ..utils.rotation_utils import matrix_to_axis_angle
 
@@ -231,25 +232,37 @@ class TokenLoss(nn.Module):
 
     def __init__(self):
         """
-        SMPL parameter loss module.
+        SMPL token classification loss module.
         """
         super(TokenLoss, self).__init__()
         self.loss_fn = torch.nn.CrossEntropyLoss()
 
-    def forward(self, pred_cls_logits_softmax: torch.Tensor, gt_tokens: torch.Tensor):
+    def forward(self, pred_cls_logits: torch.Tensor, gt_tokens: torch.Tensor,
+                position_weights: torch.Tensor = None):
         """
         Compute SMPL Token classification loss.
         Args:
-            pred_cls_logits_softmax (torch.Tensor): Tensor of shape [B, token_num, codebook_class_num] containing the predicted likelihood of each token class.
-            gt_tokens (torch.Tensor): Tensor of shape [B, token_num] containing the ground truth discrete SMPL tokens.
+            pred_cls_logits (torch.Tensor): Tensor of shape [B, token_num, codebook_class_num] of
+                raw (pre-softmax) per-token class logits. CrossEntropyLoss applies log-softmax internally.
+            gt_tokens (torch.Tensor): either [B, token_num] hard GT token IDs, or
+                [B, token_num, codebook_class_num] soft target probabilities (rows sum to 1).
+            position_weights (torch.Tensor): optional [token_num] per-position weights. Used
+                by the decoder-aware target when token positions are sampled non-uniformly,
+                where these are the inverse-propensity weights that keep the mean over the
+                sampled positions an unbiased estimate of the mean over all positions.
         Returns:
             torch.Tensor: token classification loss.
         """
-        batch_size, token_num, token_class_num = pred_cls_logits_softmax.shape
-        # problem is that the order of predicted tokens mis-match with gt tokens. So we have to match them.
-        # But it turns out the the order of SMPL tokens has meanings. 
-        loss_param = self.loss_fn(pred_cls_logits_softmax.reshape((batch_size*token_num), token_class_num), gt_tokens.reshape(batch_size*token_num))
-        return loss_param.sum()
+        batch_size, token_num, token_class_num = pred_cls_logits.shape
+        logits = pred_cls_logits.reshape(batch_size * token_num, token_class_num)
+        if gt_tokens.dim() == 3:   # soft targets: CrossEntropyLoss supports class probabilities
+            target = gt_tokens.reshape(batch_size * token_num, token_class_num).to(logits.dtype)
+        else:
+            target = gt_tokens.reshape(batch_size * token_num)
+        if position_weights is None:
+            return self.loss_fn(logits, target)
+        per_elem = F.cross_entropy(logits, target, reduction='none').view(batch_size, token_num)
+        return (per_elem * position_weights.to(per_elem.dtype).view(1, token_num)).mean()
 
 class VerticesLoss(nn.Module):
 

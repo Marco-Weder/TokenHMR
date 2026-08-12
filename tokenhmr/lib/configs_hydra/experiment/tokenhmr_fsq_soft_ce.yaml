@@ -1,0 +1,39 @@
+# @package _global_
+
+# Stage-2 TokenHMR — Proposal Part 4, main table row 3: decoder-aware soft CE, NO pose-space
+# supervision. Inherits tokenhmr_fsq_ce_only wholesale (zeroed KEYPOINTS_3D/2D + BODY_POSE,
+# CAM_KEYPOINTS_2D camera fix, PREDICT_HAND) and changes exactly one thing: the CE target goes
+# from hard one-hot token IDs to decoder-aware soft targets. So this run vs tokenhmr_fsq_ce_only
+# isolates the target distribution and nothing else.
+#
+# Why this is worth a run: hard CE cost +16.6mm EMDB / +8.4mm 3DPW PA-MPJPE against the
+# pose-loss-only baseline, and that deficit is pure articulation (the orientation component
+# already matches the baseline). The hypothesis is that hard CE over-constrains the head by
+# treating codes that decode to nearly the same pose as equally wrong.
+#
+# EXPECTATION: like ce_only, this run has no keypoint supervision, so global orientation stays
+# weak (ce_only's MPJPE-PA gap is ~55deg vs ce_soft's ~36deg). Judge it on PA-MPJPE and token
+# calibration against tokenhmr_fsq_ce_only — NOT on MPJPE.
+
+defaults:
+  - tokenhmr_fsq_ce_only
+  - _self_
+
+task_name: tokenhmr_fsq_soft_ce
+exp_name: tokenhmr_fsq_soft_ce_${cls_id}
+cls_id: 0
+
+MODEL:
+  TOKEN_CE_TARGET: decoder_soft
+  # Softmax temperature over candidate pose damage, in mm. NOT the proposal's suggested 5.0:
+  # measured on this tokenizer, the 16 candidates at a position span only 0.481mm of damage on
+  # average, so tau=5.0 yields entropy 2.772 against the ln(16)=2.773 ceiling -- a uniform
+  # target carrying no signal. Measured tau -> target entropy: 0.02->1.14, 0.05->1.77,
+  # 0.1->2.23, 0.2->2.55, 0.5->2.72. 0.1 lands in the 1.5-2.5 nat band, sharper than the
+  # 2.93-nat predictor entropy, since flatter targets reinforce the distal mean-regression.
+  TOKEN_CE_DECODER_TAU: 0.1
+  # Token positions sampled per step (of 160). Unbiased estimator of the all-position mean;
+  # drop to 4 before touching TOKEN_CE if the step-time cost exceeds budget.
+  TOKEN_CE_NUM_POSITIONS: 8
+  # Candidate codes per position. Also the entropy bound: targets cannot exceed ln(M) nats.
+  TOKEN_CE_NUM_CANDIDATES: 16

@@ -1,0 +1,39 @@
+# @package _global_
+
+# Stage-2 TokenHMR — CE-only token supervision on the FSQ (d4, 1920-code) tokenizer.
+# Mirror of tokenhmr_transformer_dim4_ce_only, retargeted to the FSQ base. The point of this
+# run is the "it's the tokenizer" comparison: FSQ's grid codes are separated by construction
+# (measured: 62% token-ID stability under a 1 deg pose jitter and 2.2 deg NN-swap pose change,
+# vs 19% / 0.5 deg for the dim4 cosine codebook), so hard token-ID CE has a stable, non-redundant
+# target here — exactly what the dim4 cosine codebook denied it.
+#
+# Same overlay as the dim4 CE-only run: zero the pose-space token losses (KEYPOINTS_3D/2D,
+# BODY_POSE), keep hard token CE at full strength, keep GLOBAL_ORIENT + BETAS (separate heads)
+# and a pose-detached CAM_KEYPOINTS_2D so the camera still has a gradient source.
+
+defaults:
+  - tokenhmr_fsq
+  - _self_
+
+task_name: tokenhmr_fsq_ce_only
+exp_name: tokenhmr_fsq_ce_only_${cls_id}
+cls_id: 0
+
+# Deep-merged over the base LOSS_WEIGHTS: zero the pose-space token supervision, keep the CE.
+LOSS_WEIGHTS:
+  KEYPOINTS_3D: 0.0
+  KEYPOINTS_2D: 0.0
+  BODY_POSE: 0.0
+  # Full-strength hard token CE (weight is immaterial under Adam for a CE-only head, but 1.0
+  # keeps it consistent with the dim4 CE-only run for a like-for-like tokenizer comparison).
+  TOKEN_CE: 1.0
+  CAM_KEYPOINTS_2D: 0.01   # pose-detached camera supervision (same magnitude as baseline KEYPOINTS_2D)
+
+# Proposal Part 3, variant 1: hard one-hot CE on the encoder-assigned token IDs.
+MODEL:
+  TOKEN_CE_TARGET: hard
+  SMPL_HEAD:
+    # Fingers (SMPL hand joints 22,23) pinned to a flat identity rest pose instead of predicted.
+    # The wrists (joints 20,21) are still predicted via the tokenized body pose. Needed because the
+    # CE-starved hand head (and the ~160deg mean-pose init) otherwise produce twisted fingers.
+    PREDICT_HAND: True

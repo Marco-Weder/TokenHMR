@@ -1,0 +1,31 @@
+# @package _global_
+
+# Stage-2 TokenHMR — CE + soft-pose supervision (Part 3, Axis A).
+# Thin overlay on the dim4 baseline: adds a token cross-entropy term on top of the existing
+# soft-pose (keypoint + SMPL-param) losses. Everything else (tokenizer checkpoint, backbone,
+# schedule) is inherited. To retarget the ablation to a different tokenizer, change the base
+# entry in `defaults` below (e.g. tokenhmr_transformer_dim2 / _masked / _tier1) — nothing else.
+
+defaults:
+  - tokenhmr_transformer_dim4
+  - _self_
+
+task_name: tokenhmr_transformer_dim4_ce_soft
+exp_name: tokenhmr_transformer_dim4_ce_soft_${cls_id}
+cls_id: 0
+
+# Proposal Part 3, variant 2: hard one-hot CE + the baseline's soft pose loss (keypoint / SMPL-param
+# losses, which back-propagate through the frozen decoder). All pose-loss keys are deep-merged from
+# the base config; we only add the CE. TOKEN_CE: 1.0 uses the SAME CE strength as the CE-only run so
+# the two Part 3 variants differ ONLY by the presence of the pose losses — a clean ablation. At init
+# the weighted CE (~7.6) and the summed pose losses (~6) are comparable, so neither dominates.
+LOSS_WEIGHTS:
+  TOKEN_CE: 1.0
+
+MODEL:
+  TOKEN_CE_TARGET: hard
+  SMPL_HEAD:
+    # Fingers (SMPL hand joints 22,23) pinned to a flat identity rest pose instead of predicted;
+    # wrists stay predicted via the tokenized body pose. Kept identical across all Part 3 variants
+    # so hand handling never confounds the supervision comparison.
+    PREDICT_HAND: True

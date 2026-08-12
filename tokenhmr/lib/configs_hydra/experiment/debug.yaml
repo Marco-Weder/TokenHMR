@@ -26,7 +26,7 @@ TRAIN:
   SMPL_PARAM_NOISE_RATIO: 0.005
 
 DATASETS:
-  DATASET_DIR: /is/cluster/fast/scratch/sdwivedi/datasets/hmr2_training_data 
+  DATASET_DIR: /home/marco/thesis-HMR/external/tokenhmr/dataset_dir/
 
 SMPL:
   DATA_DIR: data/body_models 

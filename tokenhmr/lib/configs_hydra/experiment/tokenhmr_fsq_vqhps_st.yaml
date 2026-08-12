@@ -1,0 +1,58 @@
+# @package _global_
+
+# Experiment 2: does restoring the pose gradient improve the VQ-HPS recipe?
+#
+# The published recipe decodes argmax under no_grad, so dL_pose/dlogits = 0 and cross-entropy
+# is the token path's ONLY signal (Section "Classification-Style Token Supervision"). CE cannot
+# distinguish a wrong code that decodes 2 mm away from one that decodes 30 mm away, and with
+# top-1 at 24% that applies to three quarters of the emitted tokens. A straight-through decode
+# keeps the identical argmax forward pass -- so decode consistency and the soft==hard property
+# survive -- while letting the keypoint losses shape the logits again.
+#
+# All arms are 40k-step FINE-TUNES from the SAME 120k checkpoint, so every difference is
+# attributable to the intervention rather than to run-to-run variance. Select the arm with
+# MODEL.VQHPS_DECODE=nograd|st-argmax|gumbel (nograd = the control: identical setup, so it
+# isolates "40k more steps at this LR" from "restored gradient").
+#
+# NOTE the warm start is the 120k checkpoint, NOT 200k: extending that run to 200k warm-restarted
+# the LR and ended slightly WORSE (EMDB 92.50 vs 90.16 MPJPE), so 120k is the best FSQ model.
+
+defaults:
+  - tokenhmr_fsq_vqhps
+  - _self_
+
+task_name: tokenhmr_fsq_vqhps_st
+exp_name: vqhps_st_${cls_id}
+cls_id: 0
+
+# Weights only, fresh optimiser and LR schedule (unlike resume_path, which would restore the
+# finished 120k schedule and immediately hit max_steps).
+ckpt_path: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/logs/ckpt_backup/vqhps_fsq_step120000.ckpt
+
+MODEL:
+  # The tokenizer the 120k checkpoint was trained against. The base config's values are
+  # placeholders for a different candidate, so they must be overridden here.
+  TOKENIZER_CHECKPOINT_PATH: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/tokenization/output/tokenization_transformer_fsq/tokenization_transformer_fsq_ID00_13-05-2026_00-29-18/tokenization_transformer_fsq/best_net.pth
+  VQHPS_DECODE: st-argmax
+  # A tenth of the recipe's 1e-4 head LR, for the reason given under TRAIN below.
+  VQHPS_HEAD_LR: 1e-5
+  # Temperature of the backward surrogate only; the forward pass is unaffected. 1.0 is the plain
+  # softmax Jacobian. Lower sharpens the surrogate but risks saturating it to a zero gradient.
+  VQHPS_ST_TAU: 1.0
+  SMPL_HEAD:
+    TOKENIZER:
+      TOKEN_CODE_DIM: 4
+      TOKEN_NUM: 160
+      TOKEN_CLASS_NUM: 1920
+
+# Deliberately gentle: the 120k model has converged, and the 120k -> 200k experiment showed that
+# restarting the LR near its original peak DEGRADES it. These are a tenth of the original peaks
+# (backbone 1e-6, head 1e-4), enough for the restored gradient to act without re-disturbing the
+# solution. The control arm uses the identical schedule, so any LR effect cancels in the A/B.
+TRAIN:
+  LR: 1e-7
+  WARMUP_STEPS: 500
+
+GENERAL:
+  TOTAL_STEPS: 40_000
+  CHECKPOINT_STEPS: 20_000

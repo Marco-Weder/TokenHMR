@@ -1,0 +1,211 @@
+\begin{tikzpicture}[
+  font=\small, >={Stealth[length=2.2mm]},
+  bone/.style={draw=blue!45!black, line width=1.0pt},
+  stub/.style={draw=black!35, line width=0.8pt},
+  sib/.style={draw=orange!80!black, dashed, line width=0.9pt},
+  jt/.style={circle, draw=blue!55!black, fill=blue!55, text=white, font=\fontsize{4.6}{5}\selectfont, inner sep=0pt, minimum size=0.30cm},
+  js/.style={circle, draw=orange!85!black, fill=orange!80!black, text=white, font=\fontsize{4.6}{5}\selectfont, inner sep=0pt, minimum size=0.30cm},
+  jx/.style={circle, draw=black!45, fill=black!22, text=black, font=\fontsize{4.6}{5}\selectfont, inner sep=0pt, minimum size=0.28cm},
+  allow/.style={fill=blue!45},
+  selfc/.style={fill=blue!75!black},
+  gridl/.style={draw=black!15, line width=0.2pt},
+  sibbox/.style={draw=orange!80!black, line width=1.3pt},
+  panttl/.style={font=\small, text=black!90},
+  lgt/.style={font=\scriptsize},
+  axn/.style={font=\fontsize{5}{6}\selectfont, text=black!70, inner sep=0.5pt},
+]
+% ---------- LEFT: kinematic tree over SMPL body ----------
+\begin{scope}[shift={(0,0)}]
+% faint SMPL mesh (context)
+\node[opacity=0.42,inner sep=0] at (1.475,3.000) {\includegraphics[width=2.950cm]{images/tokenizer/skeleton_mesh.png}};
+% grey stubs to excluded joints
+\draw[stub] (1.685,2.718) -- (1.475,3.000);
+\draw[stub] (1.270,2.721) -- (1.475,3.000);
+\draw[stub] (1.468,3.328) -- (1.475,3.000);
+\draw[stub] (2.801,2.614) -- (2.638,2.983);
+\draw[stub] (0.155,2.605) -- (0.322,2.974);
+% pelvis-sibling links (dashed)
+\draw[sib] (1.685,2.718) -- (1.270,2.721);
+\draw[sib] (1.685,2.718) -- (1.468,3.328);
+\draw[sib] (1.270,2.721) -- (1.468,3.328);
+% kinematic-tree bones (21 joints)
+\draw[bone] (1.856,1.598) -- (1.685,2.718);
+\draw[bone] (1.087,1.582) -- (1.270,2.721);
+\draw[bone] (1.487,3.669) -- (1.468,3.328);
+\draw[bone] (1.889,0.527) -- (1.856,1.598);
+\draw[bone] (1.062,0.505) -- (1.087,1.582);
+\draw[bone] (1.489,4.030) -- (1.487,3.669);
+\draw[bone] (2.041,0.237) -- (1.889,0.527);
+\draw[bone] (0.913,0.231) -- (1.062,0.505);
+\draw[bone] (1.476,4.439) -- (1.489,4.030);
+\draw[bone] (1.785,4.173) -- (1.489,4.030);
+\draw[bone] (1.182,4.161) -- (1.489,4.030);
+\draw[bone] (1.496,4.951) -- (1.476,4.439);
+\draw[bone] (2.099,4.336) -- (1.785,4.173);
+\draw[bone] (0.856,4.340) -- (1.182,4.161);
+\draw[bone] (2.417,3.702) -- (2.099,4.336);
+\draw[bone] (0.553,3.714) -- (0.856,4.340);
+\draw[bone] (2.638,2.983) -- (2.417,3.702);
+\draw[bone] (0.322,2.974) -- (0.553,3.714);
+% joints
+\node[jx] at (1.475,3.000) {0};
+\node[js] at (1.685,2.718) {1};
+\node[js] at (1.270,2.721) {2};
+\node[js] at (1.468,3.328) {3};
+\node[jt] at (1.856,1.598) {4};
+\node[jt] at (1.087,1.582) {5};
+\node[jt] at (1.487,3.669) {6};
+\node[jt] at (1.889,0.527) {7};
+\node[jt] at (1.062,0.505) {8};
+\node[jt] at (1.489,4.030) {9};
+\node[jt] at (2.041,0.237) {10};
+\node[jt] at (0.913,0.231) {11};
+\node[jt] at (1.476,4.439) {12};
+\node[jt] at (1.785,4.173) {13};
+\node[jt] at (1.182,4.161) {14};
+\node[jt] at (1.496,4.951) {15};
+\node[jt] at (2.099,4.336) {16};
+\node[jt] at (0.856,4.340) {17};
+\node[jt] at (2.417,3.702) {18};
+\node[jt] at (0.553,3.714) {19};
+\node[jt] at (2.638,2.983) {20};
+\node[jt] at (0.322,2.974) {21};
+\node[jx] at (2.801,2.614) {22};
+\node[jx] at (0.155,2.605) {23};
+\end{scope}
+% ---------- arrow ----------
+\draw[->, line width=1pt] (3.40,2.60) -- node[above,font=\scriptsize]{build mask} node[below,font=\scriptsize]{$m_{ij}$} (4.15,2.60);
+% ---------- RIGHT: attention mask (scaled down and shifted) ----------
+\begin{scope}[shift={(5.00, 5.00)}, scale=0.76]
+% allowed cells
+\fill[selfc] (0.000,0.000) rectangle (0.300,-0.300);
+\fill[allow] (0.300,0.000) rectangle (0.600,-0.300);
+\fill[allow] (0.600,0.000) rectangle (0.900,-0.300);
+\fill[allow] (0.900,0.000) rectangle (1.200,-0.300);
+\fill[allow] (0.000,-0.300) rectangle (0.300,-0.600);
+\fill[selfc] (0.300,-0.300) rectangle (0.600,-0.600);
+\fill[allow] (0.600,-0.300) rectangle (0.900,-0.600);
+\fill[allow] (1.200,-0.300) rectangle (1.500,-0.600);
+\fill[allow] (0.000,-0.600) rectangle (0.300,-0.900);
+\fill[allow] (0.300,-0.600) rectangle (0.600,-0.900);
+\fill[selfc] (0.600,-0.600) rectangle (0.900,-0.900);
+\fill[allow] (1.500,-0.600) rectangle (1.800,-0.900);
+\fill[allow] (0.000,-0.900) rectangle (0.300,-1.200);
+\fill[selfc] (0.900,-0.900) rectangle (1.200,-1.200);
+\fill[allow] (1.800,-0.900) rectangle (2.100,-1.200);
+\fill[allow] (0.300,-1.200) rectangle (0.600,-1.500);
+\fill[selfc] (1.200,-1.200) rectangle (1.500,-1.500);
+\fill[allow] (2.100,-1.200) rectangle (2.400,-1.500);
+\fill[allow] (0.600,-1.500) rectangle (0.900,-1.800);
+\fill[selfc] (1.500,-1.500) rectangle (1.800,-1.800);
+\fill[allow] (2.400,-1.500) rectangle (2.700,-1.800);
+\fill[allow] (0.900,-1.800) rectangle (1.200,-2.100);
+\fill[selfc] (1.800,-1.800) rectangle (2.100,-2.100);
+\fill[allow] (2.700,-1.800) rectangle (3.000,-2.100);
+\fill[allow] (1.200,-2.100) rectangle (1.500,-2.400);
+\fill[selfc] (2.100,-2.100) rectangle (2.400,-2.400);
+\fill[allow] (3.000,-2.100) rectangle (3.300,-2.400);
+\fill[allow] (1.500,-2.400) rectangle (1.800,-2.700);
+\fill[selfc] (2.400,-2.400) rectangle (2.700,-2.700);
+\fill[allow] (3.300,-2.400) rectangle (3.600,-2.700);
+\fill[allow] (3.600,-2.400) rectangle (3.900,-2.700);
+\fill[allow] (3.900,-2.400) rectangle (4.200,-2.700);
+\fill[allow] (1.800,-2.700) rectangle (2.100,-3.000);
+\fill[selfc] (2.700,-2.700) rectangle (3.000,-3.000);
+\fill[allow] (2.100,-3.000) rectangle (2.400,-3.300);
+\fill[selfc] (3.000,-3.000) rectangle (3.300,-3.300);
+\fill[allow] (2.400,-3.300) rectangle (2.700,-3.600);
+\fill[selfc] (3.300,-3.300) rectangle (3.600,-3.600);
+\fill[allow] (4.200,-3.300) rectangle (4.500,-3.600);
+\fill[allow] (2.400,-3.600) rectangle (2.700,-3.900);
+\fill[selfc] (3.600,-3.600) rectangle (3.900,-3.900);
+\fill[allow] (4.500,-3.600) rectangle (4.800,-3.900);
+\fill[allow] (2.400,-3.900) rectangle (2.700,-4.200);
+\fill[selfc] (3.900,-3.900) rectangle (4.200,-4.200);
+\fill[allow] (4.800,-3.900) rectangle (5.100,-4.200);
+\fill[allow] (3.300,-4.200) rectangle (3.600,-4.500);
+\fill[selfc] (4.200,-4.200) rectangle (4.500,-4.500);
+\fill[allow] (3.600,-4.500) rectangle (3.900,-4.800);
+\fill[selfc] (4.500,-4.500) rectangle (4.800,-4.800);
+\fill[allow] (5.100,-4.500) rectangle (5.400,-4.800);
+\fill[allow] (3.900,-4.800) rectangle (4.200,-5.100);
+\fill[selfc] (4.800,-4.800) rectangle (5.100,-5.100);
+\fill[allow] (5.400,-4.800) rectangle (5.700,-5.100);
+\fill[allow] (4.500,-5.100) rectangle (4.800,-5.400);
+\fill[selfc] (5.100,-5.100) rectangle (5.400,-5.400);
+\fill[allow] (5.700,-5.100) rectangle (6.000,-5.400);
+\fill[allow] (4.800,-5.400) rectangle (5.100,-5.700);
+\fill[selfc] (5.400,-5.400) rectangle (5.700,-5.700);
+\fill[allow] (6.000,-5.400) rectangle (6.300,-5.700);
+\fill[allow] (5.100,-5.700) rectangle (5.400,-6.000);
+\fill[selfc] (5.700,-5.700) rectangle (6.000,-6.000);
+\fill[allow] (5.400,-6.000) rectangle (5.700,-6.300);
+\fill[selfc] (6.000,-6.000) rectangle (6.300,-6.300);
+% grid + frame
+\draw[gridl] (0.000,0.000) grid[step=0.3] (6.300,-6.300);
+\draw[thick] (0.000,0.000) rectangle (6.300,-6.300);
+\draw[sibbox] (0.000,0.000) rectangle (0.900,-0.900);
+% axis indices (SMPL joint numbers 1..21): columns on top, rows on the left
+\node[axn,rotate=90,anchor=west] at (0.150,0.050) {1};
+\node[axn,rotate=90,anchor=west] at (0.450,0.050) {2};
+\node[axn,rotate=90,anchor=west] at (0.750,0.050) {3};
+\node[axn,rotate=90,anchor=west] at (1.050,0.050) {4};
+\node[axn,rotate=90,anchor=west] at (1.350,0.050) {5};
+\node[axn,rotate=90,anchor=west] at (1.650,0.050) {6};
+\node[axn,rotate=90,anchor=west] at (1.950,0.050) {7};
+\node[axn,rotate=90,anchor=west] at (2.250,0.050) {8};
+\node[axn,rotate=90,anchor=west] at (2.550,0.050) {9};
+\node[axn,rotate=90,anchor=west] at (2.850,0.050) {10};
+\node[axn,rotate=90,anchor=west] at (3.150,0.050) {11};
+\node[axn,rotate=90,anchor=west] at (3.450,0.050) {12};
+\node[axn,rotate=90,anchor=west] at (3.750,0.050) {13};
+\node[axn,rotate=90,anchor=west] at (4.050,0.050) {14};
+\node[axn,rotate=90,anchor=west] at (4.350,0.050) {15};
+\node[axn,rotate=90,anchor=west] at (4.650,0.050) {16};
+\node[axn,rotate=90,anchor=west] at (4.950,0.050) {17};
+\node[axn,rotate=90,anchor=west] at (5.250,0.050) {18};
+\node[axn,rotate=90,anchor=west] at (5.550,0.050) {19};
+\node[axn,rotate=90,anchor=west] at (5.850,0.050) {20};
+\node[axn,rotate=90,anchor=west] at (6.150,0.050) {21};
+\node[axn,anchor=east] at (-0.070,-0.150) {1};
+\node[axn,anchor=east] at (-0.070,-0.450) {2};
+\node[axn,anchor=east] at (-0.070,-0.750) {3};
+\node[axn,anchor=east] at (-0.070,-1.050) {4};
+\node[axn,anchor=east] at (-0.070,-1.350) {5};
+\node[axn,anchor=east] at (-0.070,-1.650) {6};
+\node[axn,anchor=east] at (-0.070,-1.950) {7};
+\node[axn,anchor=east] at (-0.070,-2.250) {8};
+\node[axn,anchor=east] at (-0.070,-2.550) {9};
+\node[axn,anchor=east] at (-0.070,-2.850) {10};
+\node[axn,anchor=east] at (-0.070,-3.150) {11};
+\node[axn,anchor=east] at (-0.070,-3.450) {12};
+\node[axn,anchor=east] at (-0.070,-3.750) {13};
+\node[axn,anchor=east] at (-0.070,-4.050) {14};
+\node[axn,anchor=east] at (-0.070,-4.350) {15};
+\node[axn,anchor=east] at (-0.070,-4.650) {16};
+\node[axn,anchor=east] at (-0.070,-4.950) {17};
+\node[axn,anchor=east] at (-0.070,-5.250) {18};
+\node[axn,anchor=east] at (-0.070,-5.550) {19};
+\node[axn,anchor=east] at (-0.070,-5.850) {20};
+\node[axn,anchor=east] at (-0.070,-6.150) {21};
+\node[lgt] at (3.150,0.70) {attends to (key $j$)};
+\node[lgt, rotate=90] at (-0.52,-3.150) {query $i$};
+\end{scope}
+% ---------- panel titles ----------
+\node[panttl] at (1.475,-0.55) {Kinematic tree on the body};
+\node[panttl] at (7.394,-0.55) {Attention mask ($21\times21$)};
+% ---------- legend (chained relative positioning -> equal 4mm gaps) ----------
+\begin{scope}[shift={(-0.8,-1.5)}]
+  \node[inner sep=0, minimum size=0.28cm, fill=blue!75!black] (b1) at (0,0) {};
+  \node[lgt, right=1mm of b1, inner sep=0] (t1) {self};
+  \node[inner sep=0, minimum size=0.28cm, fill=blue!45, right=4mm of t1] (b2) {};
+  \node[lgt, right=1mm of b2, inner sep=0] (t2) {bone neighbour};
+  \node[inner sep=0, minimum width=0.40cm, minimum height=0.28cm, right=4mm of t2] (b3) {};
+  \draw[sib] (b3.west) -- (b3.east);
+  \node[lgt, right=1mm of b3, inner sep=0] (t3) {pelvis siblings};
+  \node[circle, draw=black!45, fill=black!22, minimum size=0.28cm, inner sep=0pt, right=4mm of t3] (b4) {};
+  \node[lgt, right=1mm of b4, inner sep=0] (t4) {excluded};
+  \node[inner sep=0, minimum size=0.28cm, draw=black, fill=white, right=4mm of t4] (b5) {};
+  \node[lgt, right=1mm of b5, inner sep=0] (t5) {masked ($-\infty$)};
+\end{scope}
+\end{tikzpicture}

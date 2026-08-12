@@ -1,0 +1,93 @@
+# @package _global_
+
+defaults:
+  - default.yaml
+
+task_name: tokenhmr_fsq_16k
+exp_name: tokenhmr_fsq_16k_${cls_id}
+cls_id: 0
+
+GENERAL:
+  TOTAL_STEPS: 600_000
+  LOG_STEPS: 250
+  VAL_STEPS: 1000
+  CHECKPOINT_STEPS: 2500
+  CHECKPOINT_SAVE_TOP_K: 1
+  NUM_WORKERS: 16
+  PREFETCH_FACTOR: 2
+
+TRAIN:
+  LR: 1e-6
+  MIN_LR: 5e-8
+  WARMUP_STEPS: 1000
+  WEIGHT_DECAY: 1e-4
+  BATCH_SIZE: 24
+  LOSS_REDUCTION: mean
+  NUM_TRAIN_SAMPLES: 2
+  NUM_TEST_SAMPLES: 64
+  POSE_2D_NOISE_RATIO: 0.01
+  SMPL_PARAM_NOISE_RATIO: 0.005
+
+DATASETS:
+  DATASET_DIR: dataset_dir
+
+SMPL:
+  DATA_DIR: data/body_models
+  MODEL_PATH: data/body_models/smpl
+  GENDER: neutral
+  NUM_BODY_JOINTS: 23
+  JOINT_REGRESSOR_EXTRA: data/body_models/SMPL_to_J19.pkl
+  MEAN_PARAMS: data/body_models/smpl_mean_params.npz
+
+trainer:
+  precision: 16
+  devices: 1
+  accelerator: gpu
+  num_nodes: 1
+  limit_val_batches: 1.0
+  sync_batchnorm: false
+  strategy: null
+
+MODEL:
+  VAL_LOSS_SAVE_THRESH: 5.0
+  FROZEN_LEARNED: False
+  LORA: False
+  LOOSE_SUP: True
+  LOOSE_WEIGHT: 0.05
+  WITH_MLM: False
+  # FSQ-16k tokenizer (levels [8,8,8,6,5] -> 15360 codes, d=5) + pre-LN before to_code.
+  TOKENIZER_CHECKPOINT_PATH: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/tokenization/output/tokenization_transformer_fsq_16k/tokenization_transformer_fsq_16k_ID00_16-05-2026_20-49-38/tokenization_transformer_fsq_16k/best_net.pth
+
+  IMAGE_SIZE: 256
+  IMAGE_MEAN: [0.485, 0.456, 0.406]
+  IMAGE_STD: [0.229, 0.224, 0.225]
+  BACKBONE:
+    TYPE: vit
+    PRETRAINED_WEIGHTS: data/checkpoints/hmr2_pretrained.pth
+  SMPL_HEAD:
+    TYPE: token
+    IN_CHANNELS: 2048
+    PREDICT_HAND: True
+    TOKENIZER:
+      # FSQ-16k: codebook size = prod([8,8,8,6,5]) = 15360; d = 5.
+      TOKEN_CODE_DIM: 5
+      TOKEN_NUM: 160
+      TOKEN_CLASS_NUM: 15360
+      TOKENIZER_TYPE: 'transformer'
+    TRANSFORMER_DECODER:
+      depth: 6
+      heads: 8
+      mlp_dim: 1024
+      dim_head: 64
+      dropout: 0.0
+      emb_dropout: 0.0
+      norm: layer
+      context_dim: 1280
+
+LOSS_WEIGHTS:
+  KEYPOINTS_3D: 0.05
+  KEYPOINTS_2D: 0.01
+  GLOBAL_ORIENT: 0.001
+  BODY_POSE: 0.001
+  BETAS: 0.0005
+  ADVERSARIAL: 0.0

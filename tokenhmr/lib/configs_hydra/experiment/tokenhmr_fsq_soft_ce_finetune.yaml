@@ -1,0 +1,41 @@
+# @package _global_
+
+# Part 4 pilot — decoder-aware soft CE as a SHORT FINE-TUNE, on exactly the same protocol as
+# tokenhmr_fsq_ce_weight_sweep (same ckpt_path warm start, same LR, same step budget).
+#
+# Why a fine-tune rather than the 600k from-scratch runs in tokenhmr_fsq_soft_ce{,_pose}: at
+# 0.553 s/step (0.259 base + 0.294 for the target decodes) a 600k run is ~4.2 days. A 50k
+# fine-tune is ~7.7h and is directly comparable to the sweep's control arm, which is what
+# actually answers the question.
+#
+# TOKEN_CE stays at 1.0, matching sweep cls_id=0 (hard one-hot CE, same weight). So this run vs
+# that one isolates the TARGET SHAPE with the weight held fixed -- the clean A/B for Part 4.
+# The sweep separately isolates the WEIGHT with the shape held fixed. Together they separate the
+# two explanations for ce_soft's +16.6mm PA-MPJPE deficit.
+#
+# tau is the swept axis: cls_id=0 -> 0.1 (entropy ~2.23 nats), cls_id=1 -> 0.02 (~1.14 nats).
+# Both are below the 2.93-nat predictor entropy, so neither can flatten the model further.
+
+defaults:
+  - tokenhmr_fsq_ce_soft
+  - _self_
+
+task_name: tokenhmr_fsq_soft_ce_finetune
+exp_name: fsq_softce_ft_${cls_id}
+cls_id: 0
+
+ckpt_path: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/logs/tokenhmr_fsq_ce_soft/runs/tokenhmr_fsq_ce_soft_0/checkpoints/epoch=9-step=600000.ckpt
+
+MODEL:
+  TOKEN_CE_TARGET: decoder_soft
+  TOKEN_CE_DECODER_TAU: [0.1, 0.02, 5.0]
+  TOKEN_CE_NUM_POSITIONS: 8
+  TOKEN_CE_NUM_CANDIDATES: 16
+
+GENERAL:
+  TOTAL_STEPS: 40_000
+  CHECKPOINT_STEPS: 20_000
+
+TRAIN:
+  LR: 3e-6
+  WARMUP_STEPS: 500

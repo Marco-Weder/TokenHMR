@@ -1,0 +1,76 @@
+# @package _global_
+#
+# Stage-2 TokenHMR -- ADDITIVE CHAIN, v2 (2026-08-09, rebuilt after phase B failed).
+#
+# WHY v1 FAILED. The first version zeroed KEYPOINTS_2D/3D to make step B "CE only" and put
+# CAM_KEYPOINTS_2D=0.01 in their place as camera supervision. That was wrong. The cam loss
+# detaches pred_keypoints_3d (tokenhmr.py), so its gradient reaches pred_cam_t and
+# focal_length and NOTHING else -- it cannot supervise the body. The result was the only
+# configuration in this project with no geometric anchor on the body at all:
+#
+#   weighted loss budget      abl_full (-> 52.73 PA)     v1 phase B (-> 84.05 PA @80k)
+#     TOKEN_CE                     62.9%                       77.8%
+#     KEYPOINTS_3D                 33.1%                        0%      <-- the difference
+#     KEYPOINTS_2D                  3.5%                        0%
+#     CAM_KEYPOINTS_2D               --                        21.7%    (body-detached)
+#
+#   Every run that ever used CAM_KEYPOINTS_2D landed at 77-84 PA (ce_only 77.40, the cosine-d4
+#   CE failure, v1 phase B 84.05). Every run with KEYPOINTS_3D=0.05 landed at 52-55
+#   (abl_full 52.73, abl_no_queries_lr1e5 54.64, abl_no_splitlr 54.79).
+#
+# THE FIX, AND WHY THE DECODE MOVED INTO THE BASE. We want the token path driven by CE alone
+# while orientation / shape / camera stay properly supervised. Under a SOFT decode those two
+# are incompatible: the mixture is differentiable, so KEYPOINTS_3D flows straight into the
+# token logits and the run stops being CE-only. Under a SEVERED (argmax + no_grad) decode
+# dL_pose/dq = 0 exactly, so the keypoint losses can be on and still cannot reach the tokens.
+# Severing is therefore not a later "step" -- it is what makes the experiment well-posed, so
+# VQHPS_HARD_DECODE lives here in the base.
+#
+# Shared base for every run in the chain:
+#   - VQHPS_QUERIES   false -> TokenHMR's pooled MLP-Mixer head (worth 1.9 mm; dropped)
+#   - VQHPS_SPLIT_LR  false -> one LR for backbone and head, paired with TRAIN.LR=1e-5
+#                              (same pairing as abl_no_splitlr, which reached 54.79)
+#   - VQHPS_HARD_DECODE true / VQHPS_DECODE nograd -> severed forward+backward
+#   - BODY_POSE 0: under a detached decode the reconstructed body pose is constant w.r.t.
+#     the graph, so the term cannot produce a gradient anyway.
+#   - KEYPOINTS_3D / KEYPOINTS_2D at the HMR2.0 values: they supervise the heads the token
+#     path never touches, and the severing keeps them out of the token path.
+#
+# Per-run differences (gate, decode backward) are passed on the command line by
+# run_additive_queue.sh, so this file stays the single source of the shared base.
+
+defaults:
+  - tokenhmr_fsq
+  - _self_
+
+task_name: tokenhmr_additive
+exp_name: additive_${cls_id}
+cls_id: 0
+
+MODEL:
+  VQHPS_METHOD: False
+  VQHPS_QUERIES: False     # dropped: worth 1.9 mm once its LR confound is removed
+  VQHPS_SPLIT_LR: False    # dropped: worth 2.1 mm, and it caused the shape-head divergence
+  VQHPS_HARD_DECODE: True  # in the BASE now: severing is what lets CE own the token path
+  VQHPS_CE_GATE: False     # step B turns this on; step A is the control with it off
+  VQHPS_DECODE: nograd     # steps D / E override with st-argmax / gumbel
+  VQHPS_ST_TAU: 1.0        # listed so hydra struct mode allows overriding it (steps D/E)
+  TOKEN_CE_TARGET: hard
+  TOKENIZER_CHECKPOINT_PATH: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/tokenization/output/tokenization_transformer_fsq/tokenization_transformer_fsq_ID00_13-05-2026_00-29-18/tokenization_transformer_fsq/best_net.pth
+  SMPL_HEAD:
+    PREDICT_HAND: True
+    TOKENIZER:
+      TOKENIZER_TYPE: Transformer
+      TOKEN_CODE_DIM: 4
+      TOKEN_NUM: 160
+      TOKEN_CLASS_NUM: 1920
+
+TRAIN:
+  LR: 1.0e-05              # required when VQHPS_SPLIT_LR is false
+
+LOSS_WEIGHTS:
+  TOKEN_CE: 1.0
+  BODY_POSE: 0.0           # cannot produce a gradient under a detached decode
+  KEYPOINTS_3D: 0.05       # HMR2.0 value, as in every run that reached 52-55 PA
+  KEYPOINTS_2D: 0.01       # HMR2.0 value
+  CAM_KEYPOINTS_2D: 0.0    # REMOVED: body-detached, cannot replace the keypoint losses

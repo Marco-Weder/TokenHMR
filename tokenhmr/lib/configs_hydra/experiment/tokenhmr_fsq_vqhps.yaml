@@ -1,0 +1,62 @@
+# @package _global_
+
+# Stage-2 TokenHMR — the VQ-HPS-method experiment: every fix from the VQ-HPS comparison,
+# switched on together by MODEL.VQHPS_METHOD (single all-at-once option):
+#   1. per-token learned queries in the head (1 + TOKEN_NUM decoder slots) + shared
+#      LayerNorm/Linear classifier — replaces the pooled-vector MLP-Mixer path;
+#   2. hard argmax decode through the frozen decoder under no_grad in TRAINING too —
+#      CE is the token path's only gradient (pose losses train orient/betas/cam/hands,
+#      the VQ-HPS "reprojection" role); the soft/hard eval gap disappears by construction;
+#   3. split LR: SMPL head (random init) at VQHPS_HEAD_LR=1e-4 (VQ-HPS's LR), pretrained
+#      ViT backbone stays at TRAIN.LR=1e-6;
+#   4. train-time CE restricted to real-3D-GT samples (H36M/BEDLAM dataset gate) — token
+#      IDs flip under noise far smaller than pseudo-GT error.
+# Tokenizer: whichever coarse-codebook FSQ candidate passes the stability gate. The first
+# attempt (32 tokens x 512 codes, tokenizer_amass_moyo_fsq_vqhps.yaml) FAILED its gate on
+# 31-07-2026 (stab@1° 51% vs the old 63%, stab@5° 13% vs 34%, prior top-1 0.067) — fewer
+# tokens REDUCED stability. Current candidates keep 160 tokens and shrink only the codebook:
+# tokenizer_amass_moyo_fsq_160x512.yaml (A) and ..._160x512_masked.yaml (B, + locality).
+# run_vqhps_method.sh overrides TOKEN_NUM/TOKEN_CLASS_NUM/TOKEN_CODE_DIM from the trained
+# checkpoint's hparams, so the values below are defaults/documentation, not the truth.
+# BODY_POSE weight is 0: under the detached hard decode it could not produce a gradient
+# anyway (the decoded body pose is a constant w.r.t. the graph), so zeroing it only skips
+# dead compute.
+
+defaults:
+  - tokenhmr_fsq
+  - _self_
+
+task_name: tokenhmr_fsq_vqhps
+exp_name: fsq_vqhps_${cls_id}
+cls_id: 0
+
+MODEL:
+  VQHPS_METHOD: True
+  # The four changes above, individually switchable for the leave-one-out ablation. Each
+  # defaults to VQHPS_METHOD when absent, so configs that only set VQHPS_METHOD (and every
+  # already-saved model_config.yaml) behave exactly as before. Listed here so Hydra's struct
+  # mode allows `MODEL.VQHPS_*=false` on the command line without a `+`.
+  VQHPS_QUERIES: True      # (1) per-token learned queries + shared LayerNorm/Linear classifier
+  VQHPS_HARD_DECODE: True  # (2) argmax one-hot forward through the frozen decoder
+  VQHPS_SPLIT_LR: True     # (3) head at VQHPS_HEAD_LR, backbone at TRAIN.LR
+  VQHPS_CE_GATE: True      # (4) CE restricted to H36M/BEDLAM (real 3D GT only)
+  VQHPS_HEAD_LR: 1e-4
+  TOKEN_CE_TARGET: hard
+  # FILL AFTER STAGE 1 — the <TIMESTAMP> part only exists once the tokenizer run has started.
+  # One-liner (run from external/tokenhmr) once stage 1 is done:
+  #   sed -i "s|FILL_AFTER_STAGE1[^ ]*|$(ls -d tokenization/output/tokenization_transformer_fsq_vqhps/*ID00*/tokenization_transformer_fsq_vqhps/best_net.pth | head -1 | xargs realpath)|" tokenhmr/lib/configs_hydra/experiment/tokenhmr_fsq_vqhps.yaml
+  TOKENIZER_CHECKPOINT_PATH: FILL_AFTER_STAGE1/tokenization/output/tokenization_transformer_fsq_vqhps/tokenization_transformer_fsq_vqhps_ID00_<TIMESTAMP>/tokenization_transformer_fsq_vqhps/best_net.pth
+  SMPL_HEAD:
+    # Same hand handling as the other Part-3 variants, so hands never confound the comparison.
+    PREDICT_HAND: True
+    TOKENIZER:
+      # Must match the tokenizer checkpoint (asserted in TokenClassfier). Defaults document
+      # candidate A (160 tokens x [8,8,8] = 512 codes, d=3); run_vqhps_method.sh overrides
+      # these from the checkpoint's own hparams.
+      TOKEN_CODE_DIM: 3
+      TOKEN_NUM: 160
+      TOKEN_CLASS_NUM: 512
+
+LOSS_WEIGHTS:
+  TOKEN_CE: 1.0
+  BODY_POSE: 0.0

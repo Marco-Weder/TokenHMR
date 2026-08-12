@@ -1,10 +1,12 @@
 # Specific
+/backup/
 /logs*/
 /results/
 /sandbox/
 *.lock
 *.pt
 *.npy
+*.jpg
 /example_data/downloaded*
 *.tar
 *.tar.gz
@@ -13,6 +15,11 @@
 token_channel.csv
 hmr2_training_data/
 hmr2_evaluation_data/
+/dataset_dir/
+/tokenization/output/
+/tokenization/wandb/
+/tokenization/tokenization_data/smplh/
+/outputs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -144,3 +151,17 @@ dmypy.json
 .pyre/
 /checkpoints/
 /data/
+
+# ---------------------------------------------------------------------------
+# Thesis additions (Marco Weder) -- generated artefacts of the analysis and
+# figure scripts. The scripts are tracked; their rendered output is not.
+# ---------------------------------------------------------------------------
+tokenhmr/logs/
+tokenization/token_viz_*/
+thesis_figures/downstream_candidates/
+*_preview.png
+*.pkl
+*.ckpt
+.vscode/
+tokenization/models/fsq.pdf
+thesis_figures/cache/

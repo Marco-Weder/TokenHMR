@@ -253,6 +253,10 @@ class VanillaTokenizer(nn.Module):
             x = matrix_to_rotation_6d(x)
         x_encoder = self.encoder(x)
         x_encoder = x_encoder.contiguous()
+        # The encoder emits NCT; quantize() wants [N*T, C]. forward() gets this reshape for free
+        # because QuantizeEMAReset.forward preprocesses 3-D input itself, so this path (the only
+        # caller of quantize() directly) was the one that had to do it explicitly.
+        x_encoder = self.quantizer.preprocess(x_encoder)
         code_idx = self.quantizer.quantize(x_encoder)
         code_idx = code_idx.view(batch_size, -1)
         return code_idx
@@ -278,7 +282,7 @@ class DecodeTokens(nn.Module):
         super(DecodeTokens, self).__init__()
         
         num_joints = 21
-        ckpt = torch.load(ckpt_path, map_location='cpu')
+        ckpt = torch.load(ckpt_path, map_location='cpu', weights_only=False)
         pretrained_hparams = ckpt['hparams']
         arch = pretrained_hparams.ARCH
         rot_type = arch.ROT_TYPE
@@ -327,7 +331,7 @@ class EncodeTokens(nn.Module):
                  ckpt_path=''):
         super(EncodeTokens, self).__init__()
         
-        ckpt = torch.load(ckpt_path, map_location='cpu')
+        ckpt = torch.load(ckpt_path, map_location='cpu', weights_only=False)
         pretrained_hparams = ckpt['hparams']
         arch = pretrained_hparams.ARCH
         rot_type = arch.ROT_TYPE

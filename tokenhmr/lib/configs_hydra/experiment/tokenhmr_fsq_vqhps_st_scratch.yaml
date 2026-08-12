@@ -1,0 +1,76 @@
+# @package _global_
+#
+# FROM-SCRATCH confirmation of the Gumbel decode (Experiment 2's best EMDB arm).
+#
+# Experiment 2 established that restoring the pose gradient beats a matched control by
+# 1.6-2.4 mm, but every arm there was a 40k FINE-TUNE from one shared checkpoint. That
+# licenses "the pose gradient carries information CE-only training missed"; it does NOT
+# license "this is a better recipe". This run trains the winning decode from scratch under
+# the SAME schedule as the 120k classification-recipe model it must be compared against,
+# so the two differ only in the training-time decode.
+#
+# Matched to the 120k reference run in everything but length: backbone LR 1e-6, head LR 1e-4,
+# WARMUP_STEPS 1000, PREDICT_HAND true, TOKEN_CE 1.0, BODY_POSE 0.0. These are the RECIPE's
+# original peaks, NOT Experiment 2's deliberately gentle tenth -- those were chosen for
+# nudging an already-converged model and would badly undertrain a fresh one.
+#
+# LENGTH: 200k rather than the reference's 120k, to be sure convergence is not the limiting
+# factor. CAVEAT for anyone evaluating an intermediate checkpoint: the LR schedule is a cosine
+# in step/TOTAL_STEPS, so the 120k checkpoint OF THIS RUN is mid-anneal (multiplier ~0.35 of
+# peak) and is NOT equivalent to the reference's 120k endpoint, which had fully annealed. An
+# intermediate checkpoint here is a progress probe, not a matched comparison; only the 200k
+# endpoint is a like-for-like counterpart to a completed schedule. CHECKPOINT_SAVE_TOP_K is
+# raised so those intermediates survive -- with the default of 1, each save DELETES the
+# previous one.
+#
+# BODY_POSE stays 0.0 even though the gumbel decode is differentiable and could now carry
+# that term. The arm being confirmed had it at 0.0; enabling it here would change two things
+# at once.
+#
+# KNOWN RISK (see the pilot2 failure, 2026-07-31): from scratch the logits start near
+# uniform, so a Gumbel sample is near-random and the pose gradient is initially noise. That
+# killed a previous from-scratch gumbel attempt. The difference here is that CE is at full
+# weight and is the SOLE token signal, and the CE gradient does not pass through the decode
+# at all -- so CE sharpens the logits regardless of what the sampler does, and the sample
+# becomes argmax-like as it does. This is expected to bootstrap, but it is the reason to
+# watch train/token_pred_entropy early: if it sits near ln(1920) = 7.56 past ~10k steps
+# instead of falling toward ~2.5, the bootstrap has failed and the run should be stopped.
+
+defaults:
+  - tokenhmr_fsq_vqhps
+  - _self_
+
+task_name: tokenhmr_fsq_vqhps_st_scratch
+exp_name: st_scratch_${cls_id}
+cls_id: 0
+
+MODEL:
+  # The tokenizer the 120k reference was trained against; the base config's values are
+  # placeholders for a different candidate and must be overridden.
+  TOKENIZER_CHECKPOINT_PATH: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/tokenization/output/tokenization_transformer_fsq/tokenization_transformer_fsq_ID00_13-05-2026_00-29-18/tokenization_transformer_fsq/best_net.pth
+  VQHPS_DECODE: st-argmax
+  VQHPS_HEAD_LR: 1e-4
+  # Scales the logits fed to the sampler. 1.0 is the identity, i.e. sample from the raw
+  # predicted distribution -- exactly the setting of the Experiment 2 arm being confirmed.
+  VQHPS_ST_TAU: 1.0
+  SMPL_HEAD:
+    TOKENIZER:
+      TOKEN_CODE_DIM: 4
+      TOKEN_NUM: 160
+      TOKEN_CLASS_NUM: 1920
+
+TRAIN:
+  LR: 1e-6
+  WARMUP_STEPS: 1000
+
+GENERAL:
+  TOTAL_STEPS: 200_000
+  # 40k rather than 20k: checkpoints are 7.6 GB each and the volume has ~160 GB free, so a 20k
+  # interval with retention would need 76 GB. This saves at 40/80/120/160/200k -- still hitting
+  # the 120k probe point -- for ~38 GB.
+  CHECKPOINT_STEPS: 40_000
+  # Retain them all. The default of 1 deletes the previous save each time, which is what
+  # destroyed the 120k weights of the reference run. Must be -1 ("keep everything") and not a
+  # finite count: this ModelCheckpoint has monitor=None, and Lightning rejects any other
+  # positive save_top_k when there is no metric to rank checkpoints by.
+  CHECKPOINT_SAVE_TOP_K: 1

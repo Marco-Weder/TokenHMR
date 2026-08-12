@@ -246,7 +246,7 @@ def load_pretrained(cfg, backbone, smpl_head, strict=False):
          PRETRAINED_WEIGHTS_path = cfg.ckpt_path
          if os.path.exists(PRETRAINED_WEIGHTS_path):
              log.info(f'Loading full pretrained model from {cfg.ckpt_path}...')
-             pt_model = torch.load(PRETRAINED_WEIGHTS_path, map_location='cpu')['state_dict']
+             pt_model = torch.load(PRETRAINED_WEIGHTS_path, map_location='cpu', weights_only=False)['state_dict']
              prepare_statedict(backbone, pt_model, 'backbone')
              prepare_statedict(smpl_head, pt_model, 'smpl_head')
          else:

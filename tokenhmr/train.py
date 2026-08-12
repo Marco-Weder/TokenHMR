@@ -9,10 +9,12 @@ root = pyrootutils.setup_root(root_dir, dotenv=True, pythonpath=True)
 from pathlib import Path
 import hydra
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import TensorBoardLogger
+#from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.loggers import WandbLogger
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning import Trainer
 from pytorch_lightning.plugins.environments import SLURMEnvironment
+from pytorch_lightning.callbacks import TQDMProgressBar
 
 from yacs.config import CfgNode
 from lib.configs import dataset_config
@@ -20,6 +22,20 @@ from lib.datasets import TokenHMRDataModule
 from lib.models.tokenhmr import TokenHMR
 from lib.utils.pylogger import get_pylogger
 from lib.utils.misc import task_wrapper, log_hyperparameters, get_grid_search_configs
+
+# PyTorch >=2.6 flipped torch.load's `weights_only` default to True. Every checkpoint load the repo
+# controls already passes weights_only=False (see lib/utils/misc.py, token_metrics.py, backbones/),
+# but Lightning's RESUME path (`trainer.fit(ckpt_path=...)`) calls torch.load internally with no way
+# to pass the flag, and our checkpoints embed an omegaconf DictConfig in `hyper_parameters` -> it
+# dies with "Unsupported global: omegaconf.dictconfig.DictConfig". Restoring the old default here
+# keeps resume working and matches what the rest of the codebase already does. Only ever applied to
+# our own locally-produced checkpoints.
+import torch
+_torch_load_orig = torch.load
+def _torch_load_compat(*args, **kwargs):
+    kwargs.setdefault('weights_only', False)
+    return _torch_load_orig(*args, **kwargs)
+torch.load = _torch_load_compat
 
 # HACK reset the signal handling so the lightning is free to set it
 # Based on https://github.com/facebookincubator/submitit/issues/1709#issuecomment-1246758283
@@ -59,28 +75,38 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
     model = TokenHMR(cfg, is_train_state=True)
 
     # Setup loggers
-    logger = TensorBoardLogger(os.path.join(cfg.paths.output_dir, 'tensorboard'), name='', version='', default_hp_metric=False)
+    #logger = TensorBoardLogger(os.path.join(cfg.paths.output_dir, 'tensorboard'), name='', version='', default_hp_metric=False)
+    logger = WandbLogger(
+        project="TokenHMR_Thesis",  # Name of your thesis project
+        name=f"run_{cfg.exp_name}", # Name of the specific ablation run
+        save_dir=cfg.paths.output_dir,
+        offline=False,               # Set to True if your cluster has no internet
+        log_model=False              # Optional: uploads checkpoints to Wandb
+    )
     loggers = [logger]
 
     # Setup checkpoint saving
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
-        dirpath=os.path.join(cfg.paths.output_dir, 'checkpoints'), 
-        every_n_train_steps=cfg.GENERAL.CHECKPOINT_STEPS, 
+        dirpath=os.path.join(cfg.paths.output_dir, 'checkpoints'),
+        every_n_train_steps=cfg.GENERAL.CHECKPOINT_STEPS,
         save_last=True,
         save_top_k=cfg.GENERAL.CHECKPOINT_SAVE_TOP_K,
-        save_weights_only=True,
+        save_weights_only=False,
     )
-    rich_callback = pl.callbacks.RichProgressBar()
+    # rich_callback = pl.callbacks.RichProgressBar()
+    tqdm_callback = TQDMProgressBar(refresh_rate=10) 
+
     lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='step')
     callbacks = [
         checkpoint_callback, 
         lr_monitor,
-        # rich_callback
+        #tqdm_callback #rich_callback
     ]
 
     log.info(f"Instantiating trainer <{cfg.trainer._target_}>")
     trainer: Trainer = hydra.utils.instantiate(
         cfg.trainer, 
+        max_steps=cfg.GENERAL.TOTAL_STEPS,
         callbacks=callbacks, 
         logger=loggers, 
         plugins=(SLURMEnvironment(requeue_signal=signal.SIGUSR2) if (cfg.get('launcher',None) is not None) else None), # Submitit uses SIGUSR2

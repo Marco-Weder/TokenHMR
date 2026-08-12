@@ -12,13 +12,13 @@ GENERAL:
   VAL_STEPS: 2000
   CHECKPOINT_STEPS: 2000
   CHECKPOINT_SAVE_TOP_K: 1
-  NUM_WORKERS: 6
+  NUM_WORKERS: 2
   PREFETCH_FACTOR: 2
 
 TRAIN:
   LR: 5e-6
   WEIGHT_DECAY: 1e-4
-  BATCH_SIZE: 48
+  BATCH_SIZE: 12
   LOSS_REDUCTION: mean
   NUM_TRAIN_SAMPLES: 2
   NUM_TEST_SAMPLES: 64
@@ -37,13 +37,13 @@ SMPL:
   MEAN_PARAMS: data/body_models/smpl_mean_params.npz
 
 trainer:
-  precision: 16
-  devices: 4
+  precision: bf16-mixed
+  devices: 1
   accelerator: gpu
   num_nodes: 1
   limit_val_batches: 1.0
   sync_batchnorm: true
-  strategy: ddp
+  strategy: auto
 
 MODEL:
   VAL_LOSS_SAVE_THRESH: 5.0

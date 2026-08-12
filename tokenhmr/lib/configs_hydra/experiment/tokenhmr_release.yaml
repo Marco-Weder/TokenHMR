@@ -3,22 +3,25 @@
 defaults:
   - default.yaml
 
-task_name: tokenhmr_release
-exp_name: ID${cls_id}
+task_name: tokenhmr_release_oritinal
+exp_name: tokenhmr_release_oritinal_0 #ID${cls_id}
+cls_id: 0
 
 GENERAL:
-  TOTAL_STEPS: 350_000
+  TOTAL_STEPS: 600_000
   LOG_STEPS: 250
-  VAL_STEPS: 2000
-  CHECKPOINT_STEPS: 2000
+  VAL_STEPS: 1000
+  CHECKPOINT_STEPS: 2500
   CHECKPOINT_SAVE_TOP_K: 1
-  NUM_WORKERS: 6
+  NUM_WORKERS: 16
   PREFETCH_FACTOR: 2
 
 TRAIN:
   LR: 5e-7
+  MIN_LR: 5e-8
+  WARMUP_STEPS: 1000
   WEIGHT_DECAY: 1e-4
-  BATCH_SIZE: 48
+  BATCH_SIZE: 24
   LOSS_REDUCTION: mean
   NUM_TRAIN_SAMPLES: 2
   NUM_TEST_SAMPLES: 64
@@ -26,7 +29,7 @@ TRAIN:
   SMPL_PARAM_NOISE_RATIO: 0.005
 
 DATASETS:
-  DATASET_DIR: tokenhmr/dataset_dir 
+  DATASET_DIR: dataset_dir 
 
 SMPL:
   DATA_DIR: data/body_models 
@@ -38,12 +41,12 @@ SMPL:
 
 trainer:
   precision: 16
-  devices: 4
+  devices: 1
   accelerator: gpu
   num_nodes: 1
   limit_val_batches: 1.0
-  sync_batchnorm: true
-  strategy: ddp
+  sync_batchnorm: false #true
+  strategy: null
 
 MODEL:
   VAL_LOSS_SAVE_THRESH: 5.0
@@ -52,7 +55,7 @@ MODEL:
   LOOSE_SUP: True
   LOOSE_WEIGHT: 0.05
   WITH_MLM: False
-  TOKENIZER_CHECKPOINT_PATH: data/checkpoints/tokenizer.pth
+  TOKENIZER_CHECKPOINT_PATH: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/tokenization/output/tokenization_cnn_amass_moyo_160tokens/tokenization_cnn_amass_moyo_160tokens_ID00_26-04-2026_00-07-33/tokenization_cnn_amass_moyo_160tokens/best_net.pth
 
   IMAGE_SIZE: 256
   IMAGE_MEAN: [0.485, 0.456, 0.406]

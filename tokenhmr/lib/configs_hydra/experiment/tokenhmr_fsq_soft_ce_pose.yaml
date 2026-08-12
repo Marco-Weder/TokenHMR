@@ -1,0 +1,29 @@
+# @package _global_
+
+# Stage-2 TokenHMR — Proposal Part 4, "if time allows" row: decoder-aware soft CE COMBINED with
+# the baseline's pose-space losses. Inherits tokenhmr_fsq_ce_soft wholesale and changes exactly
+# one thing: the CE target goes from hard one-hot token IDs to decoder-aware soft targets.
+#
+# This is the run that tests the actual Part 4 hypothesis on the strongest CE model available:
+# tokenhmr_fsq_ce_soft is the best CE variant (EMDB 73.68/110.08, 3DPW 53.13/79.43) but still
+# trails the pose-loss-only baseline by 16.6mm / 8.4mm PA-MPJPE. If soft targets recover part of
+# that articulation gap while keeping the ~1mm soft/hard decode gap, Part 4 is a win.
+#
+# Primary metric is PA-MPJPE, not MPJPE: the hypothesis is specifically about articulation, and
+# the orientation component is already baseline-level here.
+
+defaults:
+  - tokenhmr_fsq_ce_soft
+  - _self_
+
+task_name: tokenhmr_fsq_soft_ce_pose
+exp_name: tokenhmr_fsq_soft_ce_pose_${cls_id}
+cls_id: 0
+
+MODEL:
+  TOKEN_CE_TARGET: decoder_soft
+  # Keep identical to tokenhmr_fsq_soft_ce so the two Part 4 runs differ only by the pose losses,
+  # mirroring how ce_only and ce_soft differ only by the pose losses in Part 3.
+  TOKEN_CE_DECODER_TAU: 0.1
+  TOKEN_CE_NUM_POSITIONS: 8
+  TOKEN_CE_NUM_CANDIDATES: 16

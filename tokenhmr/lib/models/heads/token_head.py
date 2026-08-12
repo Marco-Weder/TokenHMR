@@ -27,8 +27,23 @@ class SMPLTokenDecoderHead(nn.Module):
         npose = self.joint_rep_dim * (cfg.SMPL.NUM_BODY_JOINTS + 1)
         self.npose = npose
         self.input_is_mean_shape = cfg.MODEL.SMPL_HEAD.get('TRANSFORMER_INPUT', 'zero') == 'mean_shape'
+        # VQ-HPS-style head (all-at-once switch, see MODEL.VQHPS_METHOD): the transformer decoder
+        # gets 1 + TOKEN_NUM query slots instead of 1. With zero token input, each slot is a
+        # distinct LEARNED query (token-embedding bias + that slot's learned pos_embedding),
+        # self-attending among queries and cross-attending to the ViT patch tokens — the mirror
+        # of VQ-HPS's mesh_token_embed queries. Slot 0 keeps the global readouts
+        # (orient/betas/cam/hands); slots 1..TOKEN_NUM feed the per-token classifier.
+        # (a) of the VQ-HPS recipe, independently switchable for the ablation. Defaults to
+        # MODEL.VQHPS_METHOD so every existing config and saved model_config.yaml is unchanged.
+        _vqhps = cfg.MODEL.get('VQHPS_METHOD', False)
+        self.vqhps_queries = bool(cfg.MODEL.get('VQHPS_QUERIES', _vqhps))
+        # (b) argmax one-hot forward through the frozen decoder. Orthogonal to (a).
+        self.vqhps_hard_decode = bool(cfg.MODEL.get('VQHPS_HARD_DECODE', _vqhps))
+        self.token_num = cfg.MODEL.SMPL_HEAD.TOKENIZER.TOKEN_NUM
+        if self.vqhps_queries and self.input_is_mean_shape:
+            raise ValueError('VQHPS_QUERIES requires TRANSFORMER_INPUT=zero (per-token queries)')
         transformer_args = dict(
-            num_tokens=1,
+            num_tokens=(1 + self.token_num) if self.vqhps_queries else 1,
             token_dim=(npose + 10 + 3) if self.input_is_mean_shape else 1,
             dim=1024,
         )
@@ -46,7 +61,14 @@ class SMPLTokenDecoderHead(nn.Module):
                                     token_num=cfg.MODEL.SMPL_HEAD.TOKENIZER.TOKEN_NUM, \
                                     token_class_num=cfg.MODEL.SMPL_HEAD.TOKENIZER.TOKEN_CLASS_NUM,\
                                     token_code_dim=self.token_code_dim,\
-                                    tokenizer_type=self.tokenizer_type)
+                                    tokenizer_type=self.tokenizer_type,\
+                                    decode_mode=cfg.MODEL.SMPL_HEAD.TOKENIZER.get('DECODE_MODE', 'soft'),\
+                                    vqhps_queries=self.vqhps_queries,\
+                                    vqhps_hard_decode=self.vqhps_hard_decode,\
+                                    gumbel=cfg.MODEL.get('TOKEN_GUMBEL', False),\
+                                    gumbel_hard=cfg.MODEL.get('TOKEN_GUMBEL_HARD', True),\
+                                    vqhps_decode=cfg.MODEL.get('VQHPS_DECODE', 'nograd'),\
+                                    st_tau=cfg.MODEL.get('VQHPS_ST_TAU', 1.0))
 
         if cfg.MODEL.SMPL_HEAD.get('INIT_DECODER_XAVIER', False):
             # True by default in MLP. False by default in Transformer
@@ -83,28 +105,43 @@ class SMPLTokenDecoderHead(nn.Module):
         pred_betas_list = []
         pred_cam_list = []
         cls_logits_softmax_list = []
+        cls_logits_list = []
         for i in range(self.cfg.MODEL.SMPL_HEAD.get('IEF_ITERS', 1)):
             # Input token to transformer is zero token
             if self.input_is_mean_shape:
                 token = torch.cat([pred_body_pose, pred_betas, pred_cam], dim=1)[:,None,:]
             else:
-                token = torch.zeros(batch_size, 1, 1).to(x.device)
+                num_queries = (1 + self.token_num) if self.vqhps_queries else 1
+                token = torch.zeros(batch_size, num_queries, 1).to(x.device)
 
             token = token.to(x.dtype)
             # Pass through transformer
             token_out = self.transformer(token, context=x)
-            token_out = token_out.squeeze(1) # (B, C) 1024
+            if self.vqhps_queries:
+                token_feats = token_out[:, 1:]   # (B, token_num, 1024) per-token query features
+                token_out = token_out[:, 0]      # (B, 1024) global readout query
+            else:
+                token_out = token_out.squeeze(1) # (B, C) 1024
 
             # Readout from token_out
             pred_grot = self.decpose_grot(token_out)
-            pred_bpose, cls_logits_softmax = self.decpose(token_out) 
+            pred_bpose, cls_logits_softmax, cls_logits = self.decpose(token_feats if self.vqhps_queries else token_out)
             pred_handpose = self.decpose_hands(token_out)
-            # pred_body_pose = torch.cat([pred_grot,pred_bpose,torch.zeros_like(pred_grot),torch.zeros_like(pred_grot)], -1) + pred_body_pose
             pred_body_pose = torch.cat([pred_grot,pred_bpose,pred_handpose], -1) + pred_body_pose
+            if not self.cfg.MODEL.SMPL_HEAD.get('PREDICT_HAND', True):
+                # Pin the two SMPL hand joints (22,23 -> the finger mesh) to the identity 6D = flat
+                # rest hand. Only the wrists (joints 20,21) are in the tokenized body pose; the hand
+                # joints come from decpose_hands and are ~unsupervised by body datasets. Their
+                # mean-pose init is a ~160 deg twist under the 6D convention, so both the mean and a
+                # CE-starved hand head yield garbage fingers. HMR2.0/TokenHMR likewise fix SMPL hands
+                # flat rather than predicting them. (Joints 0..21 = first 132 of the 144-dim 6D.)
+                id_hand = pred_body_pose.new_tensor([1., 0, 0, 0, 1, 0, 1., 0, 0, 0, 1, 0]).expand(batch_size, 12)
+                pred_body_pose = torch.cat([pred_body_pose[:, :132], id_hand], dim=-1)
             pred_betas = self.decshape(token_out) + pred_betas
             pred_cam = self.deccam(token_out) + pred_cam
 
             cls_logits_softmax_list.append(cls_logits_softmax)
+            cls_logits_list.append(cls_logits)
             pred_body_pose_list.append(pred_body_pose)
             pred_betas_list.append(pred_betas)
             pred_cam_list.append(pred_cam)
@@ -120,6 +157,7 @@ class SMPLTokenDecoderHead(nn.Module):
         pred_smpl_params_list['betas'] = torch.cat(pred_betas_list, dim=0)
         pred_smpl_params_list['cam'] = torch.cat(pred_cam_list, dim=0)
         pred_smpl_params_list['cls_logits_softmax'] = torch.cat(cls_logits_softmax_list, dim=0)
+        pred_smpl_params_list['cls_logits'] = torch.cat(cls_logits_list, dim=0)
         pred_body_pose = joint_conversion_fn(pred_body_pose).view(batch_size, self.cfg.SMPL.NUM_BODY_JOINTS+1, 3, 3)
 
         pred_smpl_params = {'global_orient': pred_body_pose[:, [0]],

@@ -1,0 +1,55 @@
+# @package _global_
+#
+# LEAVE-ONE-OUT ABLATION of the VQ-HPS classification recipe.
+#
+# The recipe was adopted as a bundle of four changes behind a single MODEL.VQHPS_METHOD switch,
+# so the thesis can currently say "the bundle works" but not which part does the work. Each
+# change is now an independent flag; disabling exactly one per run measures its NECESSITY:
+#
+#   MODEL.VQHPS_QUERIES=false      (a) pooled MLP-Mixer head instead of per-token learned queries
+#   MODEL.VQHPS_HARD_DECODE=false  (b) softmax-mixture decode instead of argmax one-hot
+#   MODEL.VQHPS_SPLIT_LR=false     (c) one LR for backbone and head (pair with TRAIN.LR=1e-5)
+#   MODEL.VQHPS_CE_GATE=false      (d) CE on the whole mixture, not just H36M/BEDLAM
+#
+# All arms are 200k FROM SCRATCH on one identical schedule. The existing 120k reference is NOT a
+# valid control for this table: it trained to 39k on a 600k cosine and was then resumed onto a
+# 120k cosine, so its LR trajectory differs from any clean run. `abl_full` is the control.
+#
+# CAVEAT built into the design: leave-one-out measures necessity, not sufficiency. If two changes
+# fix the same problem redundantly, removing either alone shows no effect and both look useless.
+# So a flat arm means "not necessary given the others", NOT "does nothing" -- confirm any flat
+# result with the add-one-in direction from the CE+pose-losses configuration before concluding.
+
+defaults:
+  - tokenhmr_fsq_vqhps
+  - _self_
+
+task_name: tokenhmr_fsq_vqhps_abl
+exp_name: abl_${cls_id}
+cls_id: 0
+
+MODEL:
+  # The tokenizer every downstream result in the thesis is measured against; the base config's
+  # values are placeholders for a different candidate and must be overridden.
+  TOKENIZER_CHECKPOINT_PATH: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/tokenization/output/tokenization_transformer_fsq/tokenization_transformer_fsq_ID00_13-05-2026_00-29-18/tokenization_transformer_fsq/best_net.pth
+  # The PUBLISHED recipe's backward path: no_grad, so dL_pose/dq = 0. This ablation decomposes
+  # the recipe as published; the straight-through and Gumbel variants are a separate experiment.
+  VQHPS_DECODE: nograd
+  VQHPS_HEAD_LR: 1e-4
+  SMPL_HEAD:
+    TOKENIZER:
+      TOKEN_CODE_DIM: 4
+      TOKEN_NUM: 160
+      TOKEN_CLASS_NUM: 1920
+
+TRAIN:
+  LR: 1e-6
+  WARMUP_STEPS: 1000
+
+GENERAL:
+  TOTAL_STEPS: 200_000
+  CHECKPOINT_STEPS: 40_000
+  # Only the newest checkpoint is kept: 5 arms x 7.6 GB per save would otherwise fill the volume.
+  # The Gumbel run already established the convergence curve for this schedule, so intermediate
+  # checkpoints are not needed again here.
+  CHECKPOINT_SAVE_TOP_K: 1

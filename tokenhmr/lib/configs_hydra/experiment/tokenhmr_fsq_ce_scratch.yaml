@@ -1,0 +1,44 @@
+# @package _global_
+
+# TOKEN_CE weight comparison, FROM SCRATCH at matched budget.
+#
+# WHY NOT FINE-TUNE: the 40k fine-tune sweep (tokenhmr_fsq_ce_weight_sweep) showed that cutting
+# TOKEN_CE 1.0 -> 0.3 changes the token distribution by NOTHING measurable:
+#     loss_token_ce 2.887 -> 2.867,  train entropy 2.974 -> 3.025,  top-1 0.383 -> 0.386
+# while the control (TOKEN_CE=1.0) reproduced ce_soft to within 0.2mm PA-MPJPE, proving the
+# protocol itself was sound. The most likely explanation is hysteresis: after 600k steps the
+# model sits in a deep optimum, and 40k steps at 3e-6 (~20% of the original learning budget)
+# cannot move it to a different token-entropy regime. A from-scratch pose-only model reaches
+# entropy 6.5; ce_soft sits at 2.93; fine-tuning does not appear able to travel between them.
+#
+# Training from scratch sidesteps that entirely: each arm reaches its OWN equilibrium for its
+# own loss weighting, so any difference is causal rather than an artefact of the starting point.
+#
+# COMPARABILITY: 200k steps is a complete, self-consistent run (the cosine schedule is matched
+# to it), not a truncated 600k run. These two arms are comparable TO EACH OTHER, which is what
+# answers "does the CE weight matter". They are NOT directly comparable to the 600k baselines
+# (57.06 PA) or ce_soft (73.68 PA) -- those had 3x the training budget. Read the DELTA between
+# the two arms, not their absolute values.
+#
+# LR is inherited unchanged from tokenhmr_fsq (peak 1e-6): this is a from-scratch run like the
+# originals, so it must NOT use the fine-tune LR of 3e-6.
+#
+# Deliberately no ckpt_path -- these start from the HMR2 init, as the 600k runs did.
+
+defaults:
+  - tokenhmr_fsq_ce_soft
+  - _self_
+
+task_name: tokenhmr_fsq_ce_scratch
+exp_name: fsq_scratch_${cls_id}
+cls_id: 0
+
+# cls_id=0 -> 1.0 (the matched control, ce_soft's weight), cls_id=1 -> 0.1.
+# 0.1 rather than 0.01: at 0.1 the CE term is still a live constraint, so if the frontier is
+# real this is where the trade should show without simply switching CE off.
+LOSS_WEIGHTS:
+  TOKEN_CE: [1.0, 0.1]
+
+GENERAL:
+  TOTAL_STEPS: 200_000
+  CHECKPOINT_STEPS: 50_000

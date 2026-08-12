@@ -18,6 +18,8 @@ from tqdm import tqdm
 from lib.models import load_tokenhmr
 from lib.utils import MeshRenderer
 from lib.models.smpl_wrapper import SMPL
+from lib.utils.token_metrics import compute_token_metrics, _get_gt_encoder
+from lib.utils.geometry import aa_to_rotmat
 
 def main():
     parser = argparse.ArgumentParser(description='Evaluate trained models')
@@ -33,6 +35,9 @@ def main():
     parser.add_argument('--shuffle', dest='shuffle', action='store_true', default=False, help='Shuffle the dataset during evaluation')
     parser.add_argument('--exp_name', type=str, default=None, help='Experiment name')
     parser.add_argument('--render', action='store_true')
+    parser.add_argument('--decode_mode', type=str, default='soft', choices=['soft', 'hard'],
+                        help="Token decoding at inference: 'soft' (softmax-weighted codebook mix) "
+                             "or 'hard' (argmax one-hot codebook lookup).")
 
     args = parser.parse_args()
 
@@ -52,6 +57,18 @@ def main():
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     model = model.to(device)
     model.eval()
+
+    # Inference decoding-strategy toggle (soft vs hard argmax). Only the token head has it.
+    decpose = getattr(getattr(model, 'smpl_head', None), 'decpose', None)
+    if decpose is not None and getattr(decpose, 'vqhps_method', False):
+        # VQHPS_METHOD always decodes argmax one-hot (train and eval alike), so there is no
+        # soft/hard distinction to toggle: both runs measure the same hard decode.
+        print(f'decode_mode = hard (VQHPS_METHOD; --decode_mode {args.decode_mode} has no effect)')
+    elif decpose is not None and hasattr(decpose, 'decode_mode'):
+        decpose.decode_mode = args.decode_mode
+        print(f'decode_mode = {decpose.decode_mode}')
+    elif args.decode_mode != 'soft':
+        print(f'WARNING: --decode_mode {args.decode_mode} ignored (model has no token decode head)')
     print('model loaded!')
     print('using', args.checkpoint)
     # Load config and run eval, one dataset at a time
@@ -141,12 +158,53 @@ def run_eval(model, model_cfg, dataset_cfg, device, args):
         dataset=args.dataset,
     )
 
+    # Token-predictor metrics (decode-mode-invariant): CE / top-1 / top-5 / pred-entropy vs the
+    # GT tokens (GT SMPL body pose encoded through the frozen tokenizer). Accumulated as
+    # valid-sample-weighted means so they aggregate correctly across batches.
+    ckpt_path = model_cfg.MODEL.get('TOKENIZER_CHECKPOINT_PATH', None)
+    tok_sum = {'token_ce': 0.0, 'token_top1_acc': 0.0, 'token_top5_acc': 0.0}
+    tok_n = 0
+    ent_sum, ent_n = 0.0, 0
+
     for i, batch in enumerate(tqdm(dataloader)):
         batch = recursive_to(batch, device)
         with torch.no_grad():
             out = model(batch)
 
         evaluator(out, batch)
+
+        # Token metrics (only for the token head, only over samples with a GT body pose).
+        if ckpt_path is not None and 'cls_logits_softmax' in out:
+            try:
+                bp = batch['smpl_params']['body_pose']
+                B = bp.shape[0]
+                bp = bp.view(B, -1)
+                if batch['smpl_params_is_axis_angle']['body_pose'].all():
+                    gt_bp_rotmat = aa_to_rotmat(bp.reshape(-1, 3)).view(B, -1, 3, 3)
+                else:
+                    gt_bp_rotmat = bp.view(B, -1, 3, 3)
+                has_gt = batch['has_smpl_params']['body_pose'].reshape(B, -1)[:, 0] > 0.5
+                tm = compute_token_metrics(out['cls_logits_softmax'], gt_bp_rotmat, has_gt, ckpt_path)
+                ent_sum += float(tm['token_pred_entropy']) * B
+                ent_n += B
+                n_valid = int(has_gt.sum())
+                if n_valid > 0 and 'token_top1_acc' in tm:
+                    logits = out['cls_logits']
+                    logits = logits[-B:] if logits.shape[0] != B else logits
+                    enc = _get_gt_encoder(ckpt_path, logits.device)
+                    with torch.no_grad(), torch.cuda.amp.autocast(enabled=False):
+                        gt_tok = enc.encode(gt_bp_rotmat[:, :enc.num_joints].float())
+                    ce = torch.nn.functional.cross_entropy(
+                        logits[has_gt].reshape(-1, logits.shape[-1]).float(),
+                        gt_tok[has_gt].reshape(-1))
+                    tok_sum['token_ce'] += float(ce) * n_valid
+                    tok_sum['token_top1_acc'] += float(tm['token_top1_acc']) * n_valid
+                    tok_sum['token_top5_acc'] += float(tm['token_top5_acc']) * n_valid
+                    tok_n += n_valid
+            except Exception as e:
+                if i == 0:
+                    print(f'Token metrics skipped: {e}')
+
         if i % args.log_freq == args.log_freq - 1:
             evaluator.log()
             if args.render:
@@ -154,8 +212,15 @@ def run_eval(model, model_cfg, dataset_cfg, device, args):
     evaluator.log()
     error = None
 
-    # Append results to file
+    # Append results to file (regression metrics + token metrics under this decode mode).
     metrics_dict = evaluator.get_metrics_dict()
+    metrics_dict = {f'{args.decode_mode}_{k}': v for k, v in metrics_dict.items()}
+    if tok_n > 0:
+        metrics_dict['token_ce'] = tok_sum['token_ce'] / tok_n
+        metrics_dict['token_top1_acc'] = tok_sum['token_top1_acc'] / tok_n
+        metrics_dict['token_top5_acc'] = tok_sum['token_top5_acc'] / tok_n
+    if ent_n > 0:
+        metrics_dict['token_pred_entropy'] = ent_sum / ent_n
     save_eval_result(args.results_file, metrics_dict, args.checkpoint, args.dataset, error=error, iters_done=i, exp_name=args.exp_name)
 
 

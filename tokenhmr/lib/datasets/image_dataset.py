@@ -379,6 +379,7 @@ class ImageDataset(Dataset):
                                 shardshuffle=True,
                                 resampled=resampled,
                                 cache_dir=cache_dir,
+                                empty_check=False,
                               ).select(corrupt_filter)
         if train:
             dataset = dataset.shuffle(100)
@@ -437,6 +438,9 @@ class ImageDataset(Dataset):
                                                         ))
         if epoch_size is not None:
             dataset = dataset.with_epoch(epoch_size)
+
+        if train:
+            dataset = dataset.repeat()
 
         return dataset
 

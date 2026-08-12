@@ -91,7 +91,8 @@ class BedlamDataset(Dataset):
                                 nodesplitter=wds.split_by_node,
                                 shardshuffle=True,
                                 resampled=resampled,
-                                cache_dir=cache_dir,)
+                                cache_dir=cache_dir,
+                                empty_check=False,)
         if train:
             dataset = dataset.shuffle(100)
         dataset = dataset.decode('rgb8').rename(jpg='jpg;jpeg;png')
@@ -116,6 +117,9 @@ class BedlamDataset(Dataset):
                                                         ))
         if epoch_size is not None:
             dataset = dataset.with_epoch(epoch_size)
+
+        if train:
+            dataset = dataset.repeat()
 
         return dataset
 

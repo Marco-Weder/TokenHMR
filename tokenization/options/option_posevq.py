@@ -32,9 +32,14 @@ hparams.OPT = CN()
 hparams.OPT.TOTAL_ITER = 200000
 hparams.OPT.WARM_UP_ITER = 2
 hparams.OPT.LR = 2e-4
-hparams.OPT.LR_SCHEDULER = '75000_100000'
-hparams.OPT.GAMMA = 0.05
 hparams.OPT.WEIGHT_DECAY = 0.0
+# Gradient-norm clipping; 0.0 disables it (default, so existing runs are unchanged).
+hparams.OPT.GRAD_CLIP = 0.0
+# Main scheduler kind after warmup: 'multistep' (uses LR_SCHEDULER + GAMMA) or 'cosine' (uses MIN_LR).
+hparams.OPT.SCHEDULER = 'multistep'
+hparams.OPT.LR_SCHEDULER = '75000:100000'
+hparams.OPT.GAMMA = 0.05
+hparams.OPT.MIN_LR = 1e-6
 
 hparams.LOSS = CN()
 hparams.LOSS.POSE_LOSS_WT = 1.0
@@ -59,13 +64,38 @@ hparams.ARCH.TOKEN_SIZE_MUL = 2
 hparams.ARCH.TOKEN_SIZE_DIV = 1
 hparams.ARCH.N_ENCODER_LAYERS = 3
 hparams.ARCH.N_DECODER_LAYERS = 2
+hparams.ARCH.N_HEADS = 8
+hparams.ARCH.DIM_HEAD = 64
 hparams.ARCH.NUM_TOKENS = -1  # -1 means 'use formula'; set >0 to force explicit token count
 hparams.ARCH.NB_JOINTS = 21
 hparams.ARCH.ROT_TYPE = 'rotmat'
-hparams.ARCH.QUANTIZER = 'ema_reset' # ema, orig, ema_reset, reset
+hparams.ARCH.QUANTIZER = 'ema_reset' # ema, orig, ema_reset, reset, fsq
+hparams.ARCH.DIST_METRIC = 'l2'  # 'l2' or 'cosine' (ignored for fsq)
+# FSQ levels per channel; only read when QUANTIZER == 'fsq'. Default [8,8,6,5] is the
+# paper's recommended set for ~2^11 ≈ 2048 codes (Mentzer et al. 2023, App.); d = len(levels).
+hparams.ARCH.FSQ_LEVELS = [8, 8, 6, 5]
 hparams.ARCH.SMPL_TYPE = 'smplh'
 hparams.ARCH.CB_SCALE_DOWN = 2
 hparams.ARCH.BETA = 1.0
+hparams.ARCH.DROPOUT = 0.0
+hparams.ARCH.USE_KINEMATIC_PE = False
+hparams.ARCH.EMB_DROPOUT = 0.0
+hparams.ARCH.EMB_DROPOUT_TYPE = 'drop'
+hparams.ARCH.CROSS_ATTN_DROPOUT = 0.0
+# Tier-1 capacity knobs. Defaults reproduce the previous architecture exactly.
+hparams.ARCH.FFN_MULT = 1            # 4 = standard transformer FFN expansion
+hparams.ARCH.N_DOWN_BLOCKS = 1       # >=2 → stacked Perceiver-style cross-attn down
+hparams.ARCH.N_UP_BLOCKS = 1         # >=2 → stacked cross-attn up
+# GNN tokenizer (MODEL_NAME='gnn') only: number of skeleton graph-conv layers in the encoder
+# and decoder. Deeper = larger skeletal receptive field. Ignored by the other architectures.
+hparams.ARCH.GNN_LAYERS = 4
+# Skeleton-masked transformer ("GNN via attention masking", MODEL_NAME='transformer' only):
+# restrict joint self-attention to the kinematic tree (each layer becomes a GAT layer).
+# Adds zero parameters. Defaults keep existing runs byte-identical.
+hparams.ARCH.USE_SKELETON_MASK = False
+hparams.ARCH.SKELETON_MASK_HOPS = 1   # attend within n bones; 2 doubles the receptive field per layer
+hparams.ARCH.USE_JOINT_PE = True      # learned per-joint identity embedding in the encoder; keep True
+                                      # (the mask can't distinguish L/R mirror joints — see docs/masked_transformer.md)
 
 hparams.EXP = CN()
 hparams.EXP.ID = ''
@@ -82,6 +112,7 @@ hparams.EXP.EVAL_ONLY = False
 hparams.EXP.EVAL_DS = 'test'
 hparams.EXP.RESUME_PTH = ''
 hparams.EXP.RESUME_TRAINING = False
+hparams.EXP.WARM_RESTART = False
 hparams.EXP.LOG_TB = False
 
 def get_hparams_defaults():

@@ -1,0 +1,61 @@
+# @package _global_
+#
+# Decoder-aware CE targets with influence-weighted position sampling.
+#
+# Two changes on top of tokenhmr_additive (which is the gated two-change base):
+#
+#   1. TOKEN_CE_TARGET=decoder_soft. Instead of a one-hot target, the CE target is a
+#      distribution over the TOKEN_CE_NUM_CANDIDATES codes nearest the GT latent, weighted
+#      by the MPJPE each one incurs when decoded. Codes that decode to nearly the same pose
+#      therefore get nearly the same mass, so the head is no longer pushed to make
+#      distinctions that do not exist in pose space.
+#
+#   2. TOKEN_CE_POS_WEIGHTS. Scoring candidates means decoding all of them, which is far too
+#      expensive to do at every one of the 160 positions, so only TOKEN_CE_NUM_POSITIONS are
+#      scored per step. Those positions are very unequal: swapping one moves the mesh by
+#      0.3 to 8 mm (thesis Figure B.4), so sampling uniformly spends most of the budget on
+#      positions that barely change the body. This samples them in proportion to the
+#      joint-normalised token-joint influence instead.
+#
+# On the weighting. Each joint's influence column is normalised to sum to one BEFORE summing
+# over joints, so every joint contributes the same total probability. Without that step the
+# raw influence would concentrate on the wrists, which move most in absolute millimetres only
+# because they sit at the end of the longest kinematic chain, and the legs and spine would go
+# unsupervised. With it, all 21 joints receive between 2.0% and 6.0% of the mass, the weights
+# span 7x, and the effective sample size is 140 of 160 positions.
+#
+# TOKEN_CE_POS_UNBIASED is left false on purpose. Setting it true applies inverse-propensity
+# weights, which keeps the loss an unbiased estimate of the plain mean over all positions --
+# but then the weighting only changes the sampling noise and not the objective, and measured
+# on synthetic targets that variant has ~14x the variance of uniform sampling. False is the
+# experiment we actually want: a loss in which a position counts in proportion to how much it
+# moves the body.
+#
+# Run (from the tokenhmr folder), severed decode as in Table 4.11 row 3:
+#   python tokenhmr/train.py experiment=tokenhmr_decoder_aware \
+#     exp_name=dec_aware_w_severed MODEL.VQHPS_CE_GATE=true MODEL.VQHPS_DECODE=nograd
+#
+# and the straight-through cell, Table 4.11 row 4:
+#   python tokenhmr/train.py experiment=tokenhmr_decoder_aware \
+#     exp_name=dec_aware_w_st MODEL.VQHPS_CE_GATE=true MODEL.VQHPS_DECODE=st-argmax
+#
+# For the uniform-sampling control (the configuration the thesis currently projects), add
+#   MODEL.TOKEN_CE_POS_WEIGHTS=null
+
+defaults:
+  - tokenhmr_additive
+  - _self_
+
+task_name: tokenhmr_decoder_aware
+exp_name: decoder_aware_${cls_id}
+cls_id: 0
+
+MODEL:
+  VQHPS_CE_GATE: True          # keep the label-purity gate: it is the load-bearing change
+  TOKEN_CE_TARGET: decoder_soft
+  TOKEN_CE_DECODER_TAU: 5.0    # softmax temperature over candidate MPJPE, in mm
+  TOKEN_CE_NUM_POSITIONS: 8    # positions scored per step, of TOKEN_NUM = 160
+  TOKEN_CE_NUM_CANDIDATES: 16  # candidate codes per position; caps target entropy at ln 16
+  # Influence map for THIS tokenizer. Must have TOKEN_NUM rows or the run fails loudly.
+  TOKEN_CE_POS_WEIGHTS: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/tokenization/output/token_maps/FSQ_d4.npz
+  TOKEN_CE_POS_UNBIASED: False

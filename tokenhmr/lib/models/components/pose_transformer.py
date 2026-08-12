@@ -72,11 +72,17 @@ class Attention(nn.Module):
             else nn.Identity()
         )
 
-    def forward(self, x):
+    def forward(self, x, mask=None):
+        # mask: optional bool (n, n) or (B, n, n); True = may attend. None = full attention.
         qkv = self.to_qkv(x).chunk(3, dim=-1)
         q, k, v = map(lambda t: rearrange(t, "b n (h d) -> b h n d", h=self.heads), qkv)
 
         dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+
+        if mask is not None:
+            if mask.dim() == 2:
+                mask = mask.unsqueeze(0)
+            dots = dots.masked_fill(~mask.unsqueeze(1), torch.finfo(dots.dtype).min)
 
         attn = self.attend(dots)
         attn = self.dropout(attn)
@@ -150,9 +156,11 @@ class Transformer(nn.Module):
                 )
             )
 
-    def forward(self, x: torch.Tensor, *args):
+    def forward(self, x: torch.Tensor, *args, mask=None):
+        # `mask` must be passed as a keyword: PreNorm's LayerNorm branch forwards only **kwargs
+        # to the wrapped fn, so a positional mask would be silently dropped.
         for attn, ff in self.layers:
-            x = attn(x, *args) + x
+            x = attn(x, *args, mask=mask) + x
             x = ff(x, *args) + x
         return x
 
@@ -188,14 +196,16 @@ class TransformerCrossAttn(nn.Module):
                 )
             )
 
-    def forward(self, x: torch.Tensor, *args, context=None, context_list=None):
+    def forward(self, x: torch.Tensor, *args, context=None, context_list=None, self_attn_mask=None):
         if context_list is None:
             context_list = [context] * len(self.layers)
         if len(context_list) != len(self.layers):
             raise ValueError(f"len(context_list) != len(self.layers) ({len(context_list)} != {len(self.layers)})")
 
+        # `self_attn_mask` (bool, True = may attend) restricts only the queries' self-attention;
+        # cross-attention to the context stays dense. Keyword-only for the PreNorm kwargs path.
         for i, (self_attn, cross_attn, ff) in enumerate(self.layers):
-            x = self_attn(x, *args) + x
+            x = self_attn(x, *args, mask=self_attn_mask) + x
             x = cross_attn(x, *args, context=context_list[i]) + x
             x = ff(x, *args) + x
         return x
@@ -255,6 +265,7 @@ class TransformerEncoder(nn.Module):
         norm: str = "layer",
         norm_cond_dim: int = -1,
         token_pe_numfreq: int = -1,
+        use_pos_embedding: bool = True,
     ):
         super().__init__()
         if token_pe_numfreq > 0:
@@ -267,7 +278,9 @@ class TransformerEncoder(nn.Module):
             )
         else:
             self.to_token_embedding = nn.Linear(token_dim, dim)
-        self.pos_embedding = nn.Parameter(torch.randn(1, num_tokens, dim))
+        # use_pos_embedding=False drops the learned per-token identity embedding (ablation knob
+        # for the skeleton-masked tokenizer; default True keeps existing checkpoints loadable).
+        self.pos_embedding = nn.Parameter(torch.randn(1, num_tokens, dim)) if use_pos_embedding else None
         if emb_dropout_type == "drop":
             self.dropout = DropTokenDropout(emb_dropout)
         elif emb_dropout_type == "zero":
@@ -280,7 +293,7 @@ class TransformerEncoder(nn.Module):
             dim, depth, heads, dim_head, mlp_dim, dropout, norm=norm, norm_cond_dim=norm_cond_dim
         )
 
-    def forward(self, inp: torch.Tensor, *args, **kwargs):
+    def forward(self, inp: torch.Tensor, *args, mask=None, **kwargs):
         x = inp
 
         if self.emb_dropout_loc == "input":
@@ -290,11 +303,12 @@ class TransformerEncoder(nn.Module):
         if self.emb_dropout_loc == "token":
             x = self.dropout(x)
         b, n, _ = x.shape
-        x += self.pos_embedding[:, :n]
+        if self.pos_embedding is not None:
+            x += self.pos_embedding[:, :n]
 
         if self.emb_dropout_loc == "token_afterpos":
             x = self.dropout(x)
-        x = self.transformer(x, *args)
+        x = self.transformer(x, *args, mask=mask)
         return x
 
 

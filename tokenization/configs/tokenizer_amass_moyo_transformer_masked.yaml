@@ -1,0 +1,91 @@
+# Skeleton-masked transformer ("GNN via attention masking").
+# Identical to tokenizer_amass_moyo_transformer.yaml (CODE_DIM 256 baseline, run
+# 'tokenization_transformer_with_fnn_blocks') except for the skeleton mask, so the comparison is
+# single-variable: same architecture, same parameter count (a mask adds none), only the attention
+# support differs. CODE_DIM 256 also matches the GNN run, so all three are directly comparable.
+# Restricting self-attention to the kinematic tree turns every attention layer into a GAT layer —
+# the GNN inductive bias without a new architecture.
+#
+# SKELETON_MASK_HOPS is a grid ([1, 2] -> 2 experiments):
+#   python train_poseVQ.py --cfg configs/tokenizer_amass_moyo_transformer_masked.yaml --cfg_id 0   # 1-hop
+#   python train_poseVQ.py --cfg configs/tokenizer_amass_moyo_transformer_masked.yaml --cfg_id 1   # 2-hop
+# 1-hop = pure GNN (attend to bone neighbours only; receptive field 2 hops with DEPTH=2).
+# 2-hop = attend within 2 bones (receptive field 4 hops, matching the GNN_LAYERS=4 run).
+EXP:
+  NAME: 'tokenization_transformer_masked'
+  OUT_DIR: 'output'
+  DEBUG: FALSE
+  PRINT_ITER: 100
+  EVAL_ITER: 1000
+  TR_DISP_ITER: 1000
+  VAL_DISP_ITER: 50
+  EVAL_ONLY: False
+  EVAL_DS: 'test'
+  RESUME_PTH: ''
+  RESUME_TRAINING: False
+  LOG_TB: True
+DATA:
+  DATA_ROOT: 'tokenization_data'
+  DATASET: 'amass_pose'
+  TRAINLIST: 'CMU_KIT_BMLrub_DanceDB_BMLmovi_EyesJapan_BMLhandball_TotalCapture_EKUT_ACCAD_TCDHands_MPI-Limits_MOYO'
+  TRAIN_PART: '0.12_0.11_0.11_0.05_0.05_0.05_0.05_0.05_0.03_0.03_0.03_0.16_0.16'
+  VALLIST: 'HumanEva_HDM05_SFU_MPI-Mosh_MOYO'
+  TESTLIST: 'Transitions_SSM'
+  ADD_NOISE: False
+  BATCH_SIZE: 512
+  MASK_BODY_PARTS: False
+  NUM_WORKERS: 15
+OPT:
+  # Unchanged from the transformer baseline: masking only shrinks the attention support, numerically
+  # this is still the same transformer — no GRAD_CLIP / lower LR needed (unlike the GraphConv GNN).
+  TOTAL_ITER: 400000
+  WARM_UP_ITER: 10000
+  LR: 3e-4
+  WEIGHT_DECAY: 1e-5
+  SCHEDULER: 'cosine'
+  LR_SCHEDULER: '75000:100000'
+  GAMMA: 0.05
+  MIN_LR: 1e-7
+LOSS:
+  POSE_LOSS_WT: 20.0
+  JNT_LOSS_WT: 100.0
+  MESH_LOSS_WT: 100.0
+  COMMIT_LOSS_WT: 1.0
+  LOSS_WT: 1.0
+  POSE_LOSS: 'l2'
+  MESH_LOSS: 'wt_l2'
+  JNT_LOSS: 'l2'
+  ONLY_VALID_JNT: True
+ARCH:
+  MODEL_NAME: transformer
+  CODE_DIM: [256]              # matches the 256-dim transformer baseline AND the GNN run
+  NB_CODE: [2048]
+  ROT_TYPE: 'rot6d'
+  QUANTIZER: 'ema_reset'
+  DIST_METRIC: 'cosine'
+  SMPL_TYPE: 'smplh'
+  DOWN_T: 1
+  WIDTH: 512
+  DEPTH: 2
+  DILATION_RATE: 3
+  CB_SCALE_DOWN: 2
+  TOKEN_SIZE_MUL: 4
+  TOKEN_SIZE_DIV: 4
+  NUM_TOKENS: 160
+  # --- skeleton mask (the only changes vs. the 256-dim baseline) ---
+  USE_SKELETON_MASK: True
+  SKELETON_MASK_HOPS: [1, 2]   # grid: cfg_id 0 = 1-hop (pure GNN), cfg_id 1 = 2-hop
+  USE_KINEMATIC_PE: False      # was True in the baseline; the mask hard-codes the skeleton
+                               # structure the Laplacian PE only soft-encoded -> redundant
+  USE_JOINT_PE: True           # learned per-joint identity embedding. Keep True: the skeleton has
+                               # an exact left/right graph symmetry, so without identity a mirrored
+                               # pose maps to the SAME tokens as the original (mirror-pose collapse).
+                               # Flip to False as a follow-up ablation to test this empirically.
+  # --------------------------------------------------------------
+  DROPOUT: 0.0
+  EMB_DROPOUT: 0.0             # must stay 0 with USE_SKELETON_MASK (token drop would misalign the mask)
+  EMB_DROPOUT_TYPE: 'drop'
+  CROSS_ATTN_DROPOUT: 0.0
+  FFN_MULT: 4          # 4× FFN expansion (standard transformer); as in the baseline
+  N_DOWN_BLOCKS: 2     # stacked Perceiver-style cross-attn 21→160 (self-attn over latent tokens: unmasked)
+  N_UP_BLOCKS: 2       # stacked cross-attn 160→21; the joint queries' self-attn IS skeleton-masked

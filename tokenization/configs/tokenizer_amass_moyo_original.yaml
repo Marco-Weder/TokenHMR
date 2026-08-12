@@ -1,9 +1,9 @@
 EXP:
-  NAME: 'tokenization_amass_moyo'
+  NAME: ' tokenization_cnn_amass_moyo_160tokens'
   OUT_DIR: 'output'
   DEBUG: False
   PRINT_ITER: 100
-  EVAL_ITER: 2500
+  EVAL_ITER: 1000
   TR_DISP_ITER: 1000
   VAL_DISP_ITER: 50
   EVAL_ONLY: False
@@ -23,10 +23,9 @@ DATA:
   MASK_BODY_PARTS: False
   NUM_WORKERS: 6
 OPT:
-  TOTAL_ITER: 200000
+  TOTAL_ITER: 400000
   WARM_UP_ITER: 2
   LR: 2e-4
-  GAMMA: 0.05
   WEIGHT_DECAY: 0.00001
 LOSS:
   POSE_LOSS_WT: 20.0
@@ -52,4 +51,4 @@ ARCH:
   CB_SCALE_DOWN: 2
   TOKEN_SIZE_MUL: 4
   TOKEN_SIZE_DIV: 4
-  NUM_TOKENS: 40 # Now it supports any number of tokens, defaults to 160
+  NUM_TOKENS: 160

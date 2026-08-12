@@ -61,7 +61,7 @@ class VPoserDecoder(nn.Module):
             nn.Linear(self.num_neurons, self.num_joints * 6),
             ContinousRotReprDecoder(),
         )
-        ckpt = torch.load(f'{ckpt_path}/snapshots/V02_05_epoch=13_val_loss=0.03.ckpt', map_location='cpu')['state_dict']
+        ckpt = torch.load(f'{ckpt_path}/snapshots/V02_05_epoch=13_val_loss=0.03.ckpt', map_location='cpu', weights_only=False)['state_dict']
         prepare_statedict(self.decoder_net, ckpt, 'decoder_net', 'vp_model.')
 
     def forward(self, mu, logvar):

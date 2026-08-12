@@ -1,0 +1,54 @@
+# @package _global_
+
+# Stage-2 TokenHMR — MoRo-style Gumbel-softmax training decode on the cosine VQ d4 tokenizer.
+# Supervisor-directed (2026-07-31): revisit the VQ d4 tokenizer (which failed hard-CE-only because
+# its labels flip under sub-noise pose jitter) with the training-decode trick MoRo uses
+# (models/mask_transformer/system/transformer_module.py, diff_mesh): during training the frozen
+# decoder consumes a straight-through Gumbel-softmax sample of the logits, with the temperature
+# cosine-annealed high -> low over the run (MoRo defaults 1.0 -> 0.01). The pose losses therefore
+# train the logits through a decode that converges to hard argmax, closing the soft/hard decode gap
+# WITHOUT severing gradients like VQHPS_METHOD, and without relying on stable CE labels. A weak
+# hard CE (0.1) is kept as an auxiliary. Eval is unchanged: DECODE_MODE=soft (soft argmax); run
+# eval.py with --decode_mode hard as well to measure the gap.
+
+defaults:
+  - tokenhmr_transformer_dim4
+  - _self_
+
+task_name: tokenhmr_vqd4_gumbel
+exp_name: vqd4_gumbel_${cls_id}
+cls_id: 0
+
+# WARM START (added after the 40k from-scratch pilot failed). Gumbel cannot bootstrap a uniform
+# 2048-way predictor: the hard sample is only meaningful once the logits are, so from scratch the
+# decoder saw random codes and the pose gradient was noise. Starting from the trained dim4 soft
+# baseline (92.5mm EMDB MPJPE soft / 294mm hard) also sharpens the question to the actual thesis
+# claim: can an annealed gumbel decode convert a good SOFT-decoding model into one that is safe to
+# hard-decode? `ckpt_path` loads WEIGHTS ONLY (fresh optimiser + LR schedule), unlike `resume_path`.
+ckpt_path: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/logs/tokenhmr_transformer_dim4/runs/tokenhmr_transformer_dim4_0/checkpoints/epoch=14-step=600000.ckpt
+
+LOSS_WEIGHTS:
+  TOKEN_CE: 0.1
+
+MODEL:
+  TOKEN_CE_TARGET: hard
+  # Cosine anneal of the SAMPLING temperature (see token_classifier: tau scales the logits, so
+  # the training decode really does converge to argmax). NOTE the schedule is tied to
+  # GENERAL.TOTAL_STEPS — override TOTAL_STEPS for a pilot and the anneal compresses with it.
+  TOKEN_GUMBEL: True
+  TOKEN_GUMBEL_HARD: True
+  TOKEN_GUMBEL_TEMP_START: 1.0
+  # 0.1, not MoRo's 0.01: tau now divides the logits, so 0.01 means a 100x amplification that
+  # saturates the softmax and kills the straight-through gradient. 0.1 already puts the sample
+  # essentially on the argmax while keeping the surrogate differentiable.
+  TOKEN_GUMBEL_TEMP_END: 0.1
+  # Reach the floor at 80% of training, then hold — the last stretch trains at a stable low tau
+  # instead of chasing a moving target through the noisiest part of the schedule.
+  TOKEN_GUMBEL_TEMP_END_RATIO: 0.8
+  SMPL_HEAD:
+    # False = SMPL joints 22/23 (the finger mesh segments beyond the wrists — verified via
+    # skinning weights: 503 vertices each, leaf joints) are pinned to a flat identity rest hand
+    # instead of predicted by the unsupervised decpose_hands head. Deliberate protocol deviation
+    # (Marco, 2026-07-31): comparison runs trained with True, so PVE comparisons carry a small
+    # finger-region confound; MPJPE is essentially unaffected (<3mm pose-blendshape leakage).
+    PREDICT_HAND: True

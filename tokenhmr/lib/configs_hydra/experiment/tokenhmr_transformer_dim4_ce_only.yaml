@@ -1,0 +1,41 @@
+# @package _global_
+
+# Stage-2 TokenHMR — CE-only token supervision (Part 3, Axis A).
+# Thin overlay on the dim4 baseline: the body-pose tokens are supervised ONLY by token
+# cross-entropy. The pose-space losses that back-propagate through the frozen decoder into the
+# tokens (KEYPOINTS_3D, KEYPOINTS_2D, BODY_POSE) are zeroed. GLOBAL_ORIENT + BETAS stay (they
+# supervise separate linear heads, not the token path) so the mesh keeps a valid orientation
+# and shape. CAM_KEYPOINTS_2D supervises pred_cam through a projection of DETACHED 3D joints:
+# without it the camera has no gradient source at all (learned in the _0 run: cam drifted,
+# meshes rendered off-image) — and because the joints are detached it cannot leak pose-space
+# gradient into the token path, so CE-only purity is preserved.
+# To retarget to a different tokenizer, change the base entry in `defaults` below.
+
+defaults:
+  - tokenhmr_transformer_dim4
+  - _self_
+
+task_name: tokenhmr_transformer_dim4_ce_only
+exp_name: tokenhmr_transformer_dim4_ce_only_${cls_id}
+cls_id: 0
+
+# Deep-merged over the base LOSS_WEIGHTS: zero the pose-space token supervision, keep the CE.
+LOSS_WEIGHTS:
+  KEYPOINTS_3D: 0.0
+  KEYPOINTS_2D: 0.0
+  BODY_POSE: 0.0
+  # 1.0 makes the weighted CE (~7.6 at init) match the baseline's pose-loss gradient scale so the
+  # token path is actually trained. v2 used 0.01 -> ~50x too weak -> CE plateaued at the
+  # marginal-entropy floor (~5.7 nats), top-1 stuck at ~5%. LR/schedule are unchanged from the
+  # baseline, so raising only the weight keeps this a clean ablation.
+  TOKEN_CE: 1.0
+  CAM_KEYPOINTS_2D: 0.01   # pose-detached camera supervision (same magnitude as baseline KEYPOINTS_2D)
+
+# Proposal Part 3, variant 1: hard one-hot CE on the encoder-assigned token IDs.
+MODEL:
+  TOKEN_CE_TARGET: hard
+  SMPL_HEAD:
+    # Fingers (SMPL hand joints 22,23) pinned to a flat identity rest pose instead of predicted.
+    # The wrists (joints 20,21) are still predicted via the tokenized body pose. Needed because the
+    # CE-starved hand head (and the ~160deg mean-pose init) otherwise produce twisted fingers.
+    PREDICT_HAND: True
