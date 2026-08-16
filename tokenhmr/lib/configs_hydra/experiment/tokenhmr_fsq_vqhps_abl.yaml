@@ -31,7 +31,7 @@ cls_id: 0
 MODEL:
   # The tokenizer every downstream result in the thesis is measured against; the base config's
   # values are placeholders for a different candidate and must be overridden.
-  TOKENIZER_CHECKPOINT_PATH: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/tokenization/output/tokenization_transformer_fsq/tokenization_transformer_fsq_ID00_13-05-2026_00-29-18/tokenization_transformer_fsq/best_net.pth
+  TOKENIZER_CHECKPOINT_PATH: ${paths.root_dir}/tokenization/output/tokenizers/transformer-fsq-d4/best_net.pth
   # The PUBLISHED recipe's backward path: no_grad, so dL_pose/dq = 0. This ablation decomposes
   # the recipe as published; the straight-through and Gumbel variants are a separate experiment.
   VQHPS_DECODE: nograd

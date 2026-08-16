@@ -56,7 +56,7 @@ MODEL:
   LOOSE_WEIGHT: 0.05
   WITH_MLM: False
   # FSQ-trained transformer tokenizer (levels [8,8,6,5] -> 1920 codes, d=4).
-  TOKENIZER_CHECKPOINT_PATH: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/tokenization/output/tokenization_transformer_fsq/tokenization_transformer_fsq_ID00_13-05-2026_00-29-18/tokenization_transformer_fsq/best_net.pth
+  TOKENIZER_CHECKPOINT_PATH: ${paths.root_dir}/tokenization/output/tokenizers/transformer-fsq-d4/best_net.pth
 
   IMAGE_SIZE: 256
   IMAGE_MEAN: [0.485, 0.456, 0.406]

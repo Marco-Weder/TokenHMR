@@ -27,12 +27,12 @@ cls_id: 0
 
 # Weights only, fresh optimiser and LR schedule (unlike resume_path, which would restore the
 # finished 120k schedule and immediately hit max_steps).
-ckpt_path: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/logs/ckpt_backup/vqhps_fsq_step120000.ckpt
+ckpt_path: ${paths.root_dir}/logs/ckpt_backup/vqhps_fsq_step120000.ckpt
 
 MODEL:
   # The tokenizer the 120k checkpoint was trained against. The base config's values are
   # placeholders for a different candidate, so they must be overridden here.
-  TOKENIZER_CHECKPOINT_PATH: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/tokenization/output/tokenization_transformer_fsq/tokenization_transformer_fsq_ID00_13-05-2026_00-29-18/tokenization_transformer_fsq/best_net.pth
+  TOKENIZER_CHECKPOINT_PATH: ${paths.root_dir}/tokenization/output/tokenizers/transformer-fsq-d4/best_net.pth
   VQHPS_DECODE: st-argmax
   # A tenth of the recipe's 1e-4 head LR, for the reason given under TRAIN below.
   VQHPS_HEAD_LR: 1e-5

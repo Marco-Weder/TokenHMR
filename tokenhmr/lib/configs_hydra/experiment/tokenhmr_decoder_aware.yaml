@@ -57,5 +57,5 @@ MODEL:
   TOKEN_CE_NUM_POSITIONS: 8    # positions scored per step, of TOKEN_NUM = 160
   TOKEN_CE_NUM_CANDIDATES: 16  # candidate codes per position; caps target entropy at ln 16
   # Influence map for THIS tokenizer. Must have TOKEN_NUM rows or the run fails loudly.
-  TOKEN_CE_POS_WEIGHTS: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/tokenization/output/token_maps/FSQ_d4.npz
+  TOKEN_CE_POS_WEIGHTS: ${paths.root_dir}/tokenization/output/token_maps/FSQ_d4.npz
   TOKEN_CE_POS_UNBIASED: False

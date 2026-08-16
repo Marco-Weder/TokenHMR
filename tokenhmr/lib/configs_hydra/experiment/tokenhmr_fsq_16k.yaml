@@ -56,7 +56,7 @@ MODEL:
   LOOSE_WEIGHT: 0.05
   WITH_MLM: False
   # FSQ-16k tokenizer (levels [8,8,8,6,5] -> 15360 codes, d=5) + pre-LN before to_code.
-  TOKENIZER_CHECKPOINT_PATH: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/tokenization/output/tokenization_transformer_fsq_16k/tokenization_transformer_fsq_16k_ID00_16-05-2026_20-49-38/tokenization_transformer_fsq_16k/best_net.pth
+  TOKENIZER_CHECKPOINT_PATH: ${paths.root_dir}/tokenization/output/tokenizers/transformer-fsq-d5/best_net.pth
 
   IMAGE_SIZE: 256
   IMAGE_MEAN: [0.485, 0.456, 0.406]

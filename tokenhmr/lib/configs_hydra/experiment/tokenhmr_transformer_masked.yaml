@@ -63,7 +63,7 @@ MODEL:
   WITH_MLM: False
   # Skeleton-masked transformer tokenizer, 1-hop grid entry (cfg_id 0 of
   # tokenizer_amass_moyo_transformer_masked.yaml). CODE_DIM=256, NB_CODE=2048, NUM_TOKENS=160.
-  TOKENIZER_CHECKPOINT_PATH: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/tokenization/output/tokenization_transformer_masked/tokenization_transformer_masked_ID00_03-07-2026_07-54-17_arch.skeletonmaskhops-1/tokenization_transformer_masked/best_net.pth
+  TOKENIZER_CHECKPOINT_PATH: ${paths.root_dir}/tokenization/output/tokenizers/skeleton-masked-cosine-d256/best_net.pth
 
   IMAGE_SIZE: 256
   IMAGE_MEAN: [0.485, 0.456, 0.406]

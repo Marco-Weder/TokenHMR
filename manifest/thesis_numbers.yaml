@@ -1,0 +1,81 @@
+# Values as PRINTED IN THE THESIS, transcribed by hand from the tables.
+#
+# This file is deliberately not generated. It is the contract that
+# repro.manifest.value() checks every measured number against, so a figure or a
+# README table regenerated after a code change either matches what was
+# published or fails loudly. Deriving it from eval_index.csv would make the two
+# agree by construction and destroy the only thing it is for.
+#
+# `tolerance` is half the last printed digit: tables printed to two decimals get
+# 0.005, tables printed to one decimal get 0.05.
+#
+# When a number here and in the manifest disagree, the thesis is the record of
+# what was published and the manifest is the record of what was measured. Find
+# out which is wrong before changing either.
+
+artifacts:
+
+  # Table 4.6 -- reconstruction quality against downstream accuracy.
+  # Pose-supervised, decoded as the softmax mixture. Printed to one decimal.
+  tab:downstream-baseline:
+    - {run: tokenhmr_release_oritinal_0, dataset: EMDB, metric: mode_re,   value: 59.8, tolerance: 0.05, note: "Convolutional baseline"}
+    - {run: tokenhmr_transformer_tier1_0, dataset: EMDB, metric: mode_re,  value: 58.4, tolerance: 0.05, note: "Transformer EMA l2"}
+    - {run: tokenhmr_transformer_tier1, dataset: EMDB, metric: mode_re,    value: 56.3, tolerance: 0.05, note: "Transformer EMA cosine d256"}
+    - {run: tokenhmr_transformer_masked, dataset: EMDB, metric: mode_re,   value: 59.1, tolerance: 0.05, note: "Skeleton-masked"}
+    - {run: tokenhmr_transformer_dim4_0, dataset: EMDB, metric: mode_re,   value: 56.8, tolerance: 0.05, note: "Transformer EMA cosine d4"}
+    - {run: tokenhmr_transformer_dim2, dataset: EMDB, metric: mode_re,     value: 58.3, tolerance: 0.05, note: "Transformer EMA cosine d2"}
+    - {run: tokenhmr_fsq, dataset: EMDB, metric: mode_re,                  value: 57.1, tolerance: 0.05, note: "Transformer FSQ d4"}
+    - {run: tokenhmr_fsq_16k, dataset: EMDB, metric: mode_re,              value: 57.4, tolerance: 0.05, note: "Transformer FSQ d5"}
+
+  # Table 4.7 -- token supervision on the FSQ d4 tokenizer.
+  tab:token-supervision:
+    - {run: fsq_baseline_full_soft, dataset: EMDB, metric: soft_mode_re,      value: 57.06, note: "Pose losses only"}
+    - {run: tokenhmr_fsq_ce_only_soft, dataset: EMDB, metric: soft_mode_re,   value: 77.40, note: "Token CE only"}
+    - {run: tokenhmr_fsq_ce_soft_soft, dataset: EMDB, metric: soft_mode_re,   value: 73.68, note: "Token CE + pose losses"}
+    - {run: chain_gate_hard, dataset: EMDB, metric: hard_mode_re,             value: 54.37, note: "Gated CE"}
+
+  # Table 4.9 -- the additive chain. All four arms, 200k steps, one schedule.
+  # These are the numbers plot_additive_chain.py draws.
+  tab:additive-chain:
+    - {run: chain_nogate_hard, dataset: EMDB, metric: hard_mode_re,    value: 75.55, note: "Token CE only, no gate"}
+    - {run: chain_nogate_hard, dataset: EMDB, metric: hard_mode_mpjpe, value: 116.80}
+    - {run: chain_nogate_hard, dataset: EMDB, metric: hard_mode_pve,   value: 142.97}
+    - {run: chain_gate_hard, dataset: EMDB, metric: hard_mode_re,      value: 54.37, note: "+ label-purity gate"}
+    - {run: chain_gate_hard, dataset: EMDB, metric: hard_mode_mpjpe,   value: 92.42}
+    - {run: chain_gate_hard, dataset: EMDB, metric: hard_mode_pve,     value: 111.04}
+    - {run: chain_st_hard, dataset: EMDB, metric: hard_mode_re,        value: 52.28, note: "+ straight-through decode"}
+    - {run: chain_st_hard, dataset: EMDB, metric: hard_mode_mpjpe,     value: 93.57}
+    - {run: chain_st_hard, dataset: EMDB, metric: hard_mode_pve,       value: 112.85}
+    - {run: chain_st_hard, dataset: 3DPW-TEST, metric: hard_mode_re,   value: 43.65}
+    - {run: chain_gumbel_hard, dataset: EMDB, metric: hard_mode_re,    value: 52.08, note: "+ Gumbel sampling"}
+    - {run: chain_gumbel_hard, dataset: EMDB, metric: hard_mode_mpjpe, value: 91.33}
+    - {run: chain_gumbel_hard, dataset: EMDB, metric: hard_mode_pve,   value: 110.76}
+
+  # Table 4.10 -- the gated configuration across four tokenizers.
+  tab:ce-tokenizer:
+    - {run: chain_gate_hard, dataset: EMDB, metric: hard_mode_re,   value: 54.37, note: "Transformer-FSQ-d4"}
+    - {run: cetok_tfl2_hard, dataset: EMDB, metric: hard_mode_re,   value: 69.97, note: "Transformer-VQ-L2-d256"}
+    - {run: cetok_cnn_hard, dataset: EMDB, metric: hard_mode_re,    value: 72.79, note: "CNN-VQ-L2-d256"}
+    - {run: cetok_cosd4_hard, dataset: EMDB, metric: hard_mode_re,  value: 63.72, note: "Transformer-VQ-Cosine-d4"}
+    - {run: chain_gate_hard, dataset: EMDB, metric: token_top1_acc,  value: 0.24, tolerance: 0.005}
+    - {run: cetok_tfl2_hard, dataset: EMDB, metric: token_top1_acc,  value: 0.26, tolerance: 0.005}
+    - {run: cetok_cnn_hard, dataset: EMDB, metric: token_top1_acc,   value: 0.04, tolerance: 0.005}
+    - {run: cetok_cosd4_hard, dataset: EMDB, metric: token_top1_acc, value: 0.05, tolerance: 0.005}
+
+  # Table B.2 -- the continuous-regression reference.
+  tab:continuous-ref:
+    - {run: continuous_400k_hard, dataset: EMDB, metric: hard_mode_re,      value: 52.13}
+    - {run: continuous_400k_hard, dataset: EMDB, metric: hard_mode_mpjpe,   value: 85.83}
+    - {run: continuous_400k_hard, dataset: EMDB, metric: hard_mode_pve,     value: 103.11}
+    - {run: continuous_400k_hard, dataset: 3DPW-TEST, metric: hard_mode_re, value: 42.20}
+
+  # Table B.3 -- cost of the detached decode.
+  tab:blocked-cost:
+    - {run: abl_full_hard, dataset: EMDB, metric: hard_mode_re,         value: 52.73, note: "Detached argmax control"}
+    - {run: abl_no_harddecode_hard, dataset: EMDB, metric: hard_mode_re, value: 50.14, note: "Differentiable mixture"}
+
+  # Table B.4 -- decoder-aware targets.
+  tab:decoder-aware:
+    - {run: dec_aware_st_hard, dataset: EMDB, metric: hard_mode_re,     value: 54.31}
+    - {run: dec_aware_st_hard, dataset: EMDB, metric: hard_mode_mpjpe,  value: 96.31}
+    - {run: dec_aware_st_hard, dataset: EMDB, metric: hard_mode_pve,    value: 116.54}

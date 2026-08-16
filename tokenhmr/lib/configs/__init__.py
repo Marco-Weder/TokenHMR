@@ -2,6 +2,8 @@ import os
 from typing import Dict
 from yacs.config import CfgNode as CN
 
+from repro.legacy import rewrite_cfg
+
 def to_lower(x: Dict) -> Dict:
     """
     Convert all dictionary keys to lowercase
@@ -98,6 +100,11 @@ def get_config(config_file: str, merge: bool = True) -> CN:
     else:
       cfg = CN(new_allowed=True)
     cfg.merge_from_file(config_file)
+
+    # Configs saved alongside a checkpoint record the absolute paths of the
+    # machine that trained it. Repoint them at this checkout so a finished run
+    # stays re-evaluable, without rewriting the record of how it was trained.
+    rewrite_cfg(cfg)
 
     cfg.freeze()
     return cfg

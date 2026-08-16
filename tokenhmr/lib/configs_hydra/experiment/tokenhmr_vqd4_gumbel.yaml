@@ -25,7 +25,7 @@ cls_id: 0
 # baseline (92.5mm EMDB MPJPE soft / 294mm hard) also sharpens the question to the actual thesis
 # claim: can an annealed gumbel decode convert a good SOFT-decoding model into one that is safe to
 # hard-decode? `ckpt_path` loads WEIGHTS ONLY (fresh optimiser + LR schedule), unlike `resume_path`.
-ckpt_path: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/logs/tokenhmr_transformer_dim4/runs/tokenhmr_transformer_dim4_0/checkpoints/epoch=14-step=600000.ckpt
+ckpt_path: ${paths.root_dir}/logs/tokenhmr_transformer_dim4/runs/tokenhmr_transformer_dim4_0/checkpoints/epoch=14-step=600000.ckpt
 
 LOSS_WEIGHTS:
   TOKEN_CE: 0.1

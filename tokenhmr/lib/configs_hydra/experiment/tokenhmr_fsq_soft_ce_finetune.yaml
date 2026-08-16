@@ -24,7 +24,7 @@ task_name: tokenhmr_fsq_soft_ce_finetune
 exp_name: fsq_softce_ft_${cls_id}
 cls_id: 0
 
-ckpt_path: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/logs/tokenhmr_fsq_ce_soft/runs/tokenhmr_fsq_ce_soft_0/checkpoints/epoch=9-step=600000.ckpt
+ckpt_path: ${paths.root_dir}/logs/tokenhmr_fsq_ce_soft/runs/tokenhmr_fsq_ce_soft_0/checkpoints/epoch=9-step=600000.ckpt
 
 MODEL:
   TOKEN_CE_TARGET: decoder_soft

@@ -55,7 +55,7 @@ MODEL:
   LOOSE_SUP: True
   LOOSE_WEIGHT: 0.05
   WITH_MLM: False
-  TOKENIZER_CHECKPOINT_PATH: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/tokenization/output/tokenization_transformer_with_fnn_blocks/tokenization_transformer_with_fnn_blocks_ID00_08-05-2026_16-39-44/tokenization_transformer_with_fnn_blocks/best_net.pth
+  TOKENIZER_CHECKPOINT_PATH: ${paths.root_dir}/tokenization/output/tokenizers/transformer-cosine-d256/best_net.pth
 
   IMAGE_SIZE: 256
   IMAGE_MEAN: [0.485, 0.456, 0.406]

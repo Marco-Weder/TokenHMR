@@ -37,7 +37,7 @@ exp_name: fsq_cesweep_${cls_id}
 cls_id: 0
 
 # Weights only, fresh optimiser. Absolute path: hydra may change the working directory.
-ckpt_path: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/logs/tokenhmr_fsq_ce_soft/runs/tokenhmr_fsq_ce_soft_0/checkpoints/epoch=9-step=600000.ckpt
+ckpt_path: ${paths.root_dir}/logs/tokenhmr_fsq_ce_soft/runs/tokenhmr_fsq_ce_soft_0/checkpoints/epoch=9-step=600000.ckpt
 
 # cls_id: 0 -> 1.0 (control), 1 -> 0.3, 2 -> 0.1, 3 -> 0.01, 4 -> 0.0 (CE off entirely;
 # the >0 gate in compute_loss disables the term, giving the frontier's other endpoint).
