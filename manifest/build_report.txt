@@ -1,0 +1,9 @@
+project root: /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr
+evaluation CSVs found: 81
+metric rows: 1132 (43 superseded by a later evaluation)
+run directories under results/release: 84
+directories with no usable metric row (3):
+    cegate80k_soft
+    dec_aware_st_diag
+    eval
+stage-1 tokenizers recorded: 8

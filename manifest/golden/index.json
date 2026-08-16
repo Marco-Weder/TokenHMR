@@ -1,0 +1,10 @@
+{
+ "note": "Numeric digests of deterministic CPU analysis outputs, recorded before the repository reorganisation. Renders are excluded on purpose.",
+ "recorded": [
+  "tokenization/output/codebook_geometry/summary.json",
+  "tokenization/output/recon_by_dataset/summary_all.json",
+  "tokenization/output/token_stability/summary.json"
+ ],
+ "missing": [],
+ "tolerance": 1e-06
+}
