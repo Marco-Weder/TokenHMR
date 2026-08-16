@@ -427,10 +427,11 @@ def run_inference(video, boxes, valid, stride, ckpt, model_config, batch_size, s
     # Token -> body region, and per-vertex region for painting the mesh, both measured here
     # while the tokenizer and SMPL are still loaded.
     if enc is None:
-        token_joint = np.zeros((T, 21), np.float32)
+        token_joint = np.zeros(T, np.int8)
+        token_influence = np.zeros((T, 21), np.float32)
     else:
         ref = torch.from_numpy(bpose[valid[:, 0], 0, :enc.num_joints]).to(DEVICE)
-        token_joint = token_joint_map(enc, ref)
+        token_joint, token_influence = token_joint_map(enc, ref)
     lbs = model.smpl.lbs_weights.detach().cpu().numpy()                  # (6890, 24)
     # SMPL joints 0..23 -> body-pose joint index, with the pelvis folded into Spine1 and each
     # hand into its wrist, so every vertex lands on one of the 21 joints the tokens control.
@@ -445,20 +446,22 @@ def run_inference(video, boxes, valid, stride, ckpt, model_config, batch_size, s
     torch.cuda.empty_cache()
 
     return dict(verts=verts, cam_t=cam_t, tok_enc=tok_enc, tok_enc_raw=tok_enc_raw,
-                tok_pred=tok_pred, latent=latent,
-                focal=focal, token_joint=token_joint, vert_joint=vert_joint.astype(np.int8),
+                tok_pred=tok_pred, latent=latent, bpose=bpose,
+                focal=focal, token_joint=token_joint, token_influence=token_influence,
+                vert_joint=vert_joint.astype(np.int8),
                 levels=np.array(levels, np.int64), nb_code=np.int64(K), num_tokens=np.int64(T),
                 smooth=np.int64(smooth))
 
 
 @torch.no_grad()
 def token_joint_map(enc, poses, n_alt=6, max_poses=24, seed=0):
-    """Which single joint does each token slot control? (measured, not assumed)
+    """Which joints does each token slot move? (measured, not assumed)
 
     For every token slot, swap its code for random alternatives on real poses from this clip and
-    record which of the 21 joints change local rotation the most. FSQ tokens came out near-local
-    in earlier analysis (~1 joint each), so this argmax is stable; it is only used for coloring
-    and for grouping the raster rows.
+    record how far each of the 21 joints rotates. Returns the arg-max joint per slot, used for
+    coloring and for grouping the raster rows, and the full slot x joint influence matrix in
+    degrees, which `visualize_joint_tokens` ranks to pick the slots that drive a given joint.
+    FSQ tokens came out near-local in earlier analysis (~1 joint each), so the arg-max is stable.
     """
     from tokenization.models.rotation_utils import rotation_6d_to_matrix
 
@@ -480,6 +483,7 @@ def token_joint_map(enc, poses, n_alt=6, max_poses=24, seed=0):
 
     nb = enc.quantizer.nb_code
     joint = np.zeros(T, np.int8)
+    influence = np.zeros((T, base.shape[1]), np.float32)
     for t in tqdm(range(T), desc='  token -> joint'):
         alt = idx.repeat_interleave(n_alt, 0)                  # (P*n_alt, T)
         alt[:, t] = torch.randint(0, nb, (P * n_alt,), generator=g).to(DEVICE)
@@ -487,13 +491,14 @@ def token_joint_map(enc, poses, n_alt=6, max_poses=24, seed=0):
         rel = torch.matmul(base.repeat_interleave(n_alt, 0).transpose(-1, -2), pert)
         cos = ((rel[..., 0, 0] + rel[..., 1, 1] + rel[..., 2, 2] - 1) * 0.5).clamp(-1, 1)
         move = torch.rad2deg(torch.acos(cos)).mean(0)          # (J,) mean degrees per joint
+        influence[t] = move.cpu().numpy()
         joint[t] = int(move.argmax())
     hit = [(JOINT_NAMES[j], int((joint == j).sum())) for j in JOINT_ORDER]
     print('  tokens per joint: ' + ', '.join(f'{n}={c}' for n, c in hit if c))
     empty = [n for n, c in hit if not c]
     if empty:
         print('  no token claims: ' + ', '.join(empty))
-    return joint
+    return joint, influence
 
 
 # --------------------------------------------------------------------------- #

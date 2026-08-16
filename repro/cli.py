@@ -183,6 +183,106 @@ def cmd_compare_video(args) -> int:
     return compare_video.main(args.rest)
 
 
+# The README hero. The tokenizer here is the FSQ one carried through the thesis, and the
+# stage-2 run is its pose-supervised baseline, which recovers the cleanest meshes; the code
+# panel reads the same either way, since the tokens shown are the encoder's rather than the
+# regressor's. Every default is overridable: anything passed after the flags below goes
+# straight to the script, and a flag given there wins over the default of the same name.
+TITLE_VIDEO_DEFAULTS = [
+    ("--checkpoint", "logs/tokenhmr_fsq/runs/tokenhmr_fsq_0/checkpoints/epoch=9-step=600000.ckpt"),
+    ("--model_config", "logs/tokenhmr_fsq/runs/tokenhmr_fsq_0/model_config.yaml"),
+    ("--layout", "duo"),
+    ("--crop", "focus"),
+    ("--smooth", "5"),
+    ("--name", "token_stream"),
+]
+
+
+def cmd_title_video(args) -> int:
+    from tokenhmr import compare_video
+
+    rest = list(args.rest)
+    out_dir = paths.RESULTS_DIR / "title_slide"
+
+    argv, chosen = [], {}
+    for flag, value in TITLE_VIDEO_DEFAULTS:
+        chosen[flag] = rest[rest.index(flag) + 1] if flag in rest else value
+        if flag not in rest:
+            argv += [flag, value]
+    if "--out" not in rest:
+        argv += ["--out", str(out_dir)]
+    argv += rest
+
+    module = "tokenhmr.visualize_video_latents"
+    sys.argv = [module] + argv
+    runpy.run_module(module, run_name="__main__")
+
+    if args.no_gif or "--out" in rest or "--no-subdir" in rest:
+        return 0
+
+    # The script files its output under a per-tokenizer subdirectory, so ask it where.
+    from tokenhmr.visualize_video_latents import output_tags
+
+    tok_tag, _ = output_tags(chosen["--model_config"], chosen["--checkpoint"])
+    mp4 = out_dir / tok_tag / f"{chosen['--name']}.mp4"
+    if not mp4.exists():
+        print(f"no mp4 at {mp4}; skipping the GIF", file=sys.stderr)
+        return 1
+
+    gif = paths.PROJECT_ROOT.parent.parent / "docs" / "media" / "token_stream.gif"
+    gif.parent.mkdir(parents=True, exist_ok=True)
+    size = compare_video.to_gif(mp4, gif, args.fps, args.width, args.gif_colors)
+    print(f"wrote {gif}  ({size / 1e6:.1f} MB)")
+    if size > 8e6:
+        print("  over 8 MB. Re-run with --gif-colors 48, then --fps 6, then --width 720.")
+    return 0
+
+
+def cmd_joint_video(args) -> int:
+    """The README hero: the clip with its mesh, beside the slots that influence each joint."""
+    from tokenhmr import compare_video
+
+    rest = list(args.rest)
+    out_dir = paths.RESULTS_DIR / 'joint_tokens'
+    name = rest[rest.index('--name') + 1] if '--name' in rest else 'joint_tokens'
+    argv = [] if '--out' in rest else ['--out', str(out_dir)]
+    argv += rest
+
+    module = 'tokenhmr.visualize_joint_tokens'
+    sys.argv = [module] + argv
+    try:
+        runpy.run_module(module, run_name='__main__')
+    except SystemExit as exc:            # the script ends in sys.exit(main())
+        if exc.code:
+            return int(exc.code)
+
+    if args.no_gif or '--out' in rest:
+        return 0
+
+    from tokenhmr.visualize_video_latents import output_tags
+
+    cfg = rest[rest.index('--model_config') + 1] if '--model_config' in rest else \
+        'logs/tokenhmr_chain2_st/runs/chain_st/model_config.yaml'
+    ckpt = rest[rest.index('--checkpoint') + 1] if '--checkpoint' in rest else \
+        'logs/tokenhmr_chain2_st/runs/chain_st/checkpoints/last.ckpt'
+    tok_tag, _run = output_tags(cfg, ckpt)
+    mp4 = out_dir / tok_tag / f'{name}.mp4'
+    if not mp4.exists():
+        print(f'no mp4 at {mp4}; skipping the GIF', file=sys.stderr)
+        return 1
+
+    gif = paths.PROJECT_ROOT.parent.parent / 'docs' / 'media' / 'joint_tokens.gif'
+    gif.parent.mkdir(parents=True, exist_ok=True)
+    size = compare_video.to_gif(mp4, gif, args.fps, args.width, args.gif_colors,
+                                speed=args.speed, dither=False)
+    shutil.copyfile(gif, mp4.with_suffix('.gif'))
+    print(f'wrote {gif}  ({size / 1e6:.1f} MB)')
+    print(f'wrote {mp4.with_suffix(".gif")}  (same file, beside the mp4)')
+    if size > 8e6:
+        print('  over 8 MB. Re-run with --gif-colors 32, then --speed 0.3, then --width 640.')
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="thesis", description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="command", required=True)
@@ -207,12 +307,41 @@ def main(argv=None) -> int:
     v.add_argument("rest", nargs=argparse.REMAINDER)
     v.set_defaults(func=cmd_compare_video)
 
+    jv = sub.add_parser("joint-video",
+                        help="render the mesh beside the token slots that influence each joint")
+    jv.add_argument("--fps", type=int, default=10)
+    jv.add_argument("--width", type=int, default=780, help="GIF width in pixels")
+    jv.add_argument("--gif-colors", type=int, default=48)
+    jv.add_argument("--speed", type=float, default=0.40,
+                    help="GIF playback speed multiplier applied as setpts (0.4 = 2.5x faster)")
+    jv.add_argument("--no-gif", action="store_true", help="write only the mp4")
+    jv.add_argument("rest", nargs=argparse.REMAINDER)
+    jv.set_defaults(func=cmd_joint_video)
+
+    t = sub.add_parser("title-video",
+                       help="render the recovered meshes beside the live codebook (README hero)")
+    t.add_argument("--fps", type=int, default=8)
+    t.add_argument("--width", type=int, default=820, help="GIF width in pixels")
+    t.add_argument("--gif-colors", type=int, default=64)
+    t.add_argument("--no-gif", action="store_true", help="write only the mp4")
+    t.add_argument("rest", nargs=argparse.REMAINDER)
+    t.set_defaults(func=cmd_title_video)
+
     f = sub.add_parser("figure", help="render one thesis figure")
     f.add_argument("name", nargs="?", default="")
     f.add_argument("rest", nargs=argparse.REMAINDER)
     f.set_defaults(func=cmd_figure)
 
-    args = ap.parse_args(argv)
+    # argparse.REMAINDER only starts collecting at the first non-option token, so a
+    # subcommand flag the parser does not know about ("thesis joint-video --script ...")
+    # would otherwise be rejected before it reached the script it belongs to.
+    args, unknown = ap.parse_known_args(argv)
+    if unknown:
+        if not hasattr(args, "rest"):
+            ap.error(f"unrecognized arguments: {' '.join(unknown)}")
+        # Unknown flags come first: REMAINDER may already have swallowed the value that
+        # belongs to one of them as its own first token.
+        args.rest = unknown + list(args.rest)
     return args.func(args)
 
 

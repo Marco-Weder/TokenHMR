@@ -204,11 +204,20 @@ def _open_writer(path, w, h, fps):
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def to_gif(mp4: Path, gif: Path, fps: int, width: int, colors: int) -> int:
-    """Two-pass palette encode. GitHub renders a GIF inline but not an mp4."""
-    vf = (f"fps={fps},scale={width}:-2:flags=lanczos,split[a][b];"
+def to_gif(mp4: Path, gif: Path, fps: int, width: int, colors: int,
+           speed: float = 1.0, dither: bool = True) -> int:
+    """Two-pass palette encode. GitHub renders a GIF inline but not an mp4.
+
+    `speed` is an setpts multiplier, so 0.4 plays the clip 2.5x faster; a long clip is
+    otherwise too many frames to keep a GIF inside GitHub's comfortable size. Dithering
+    costs about a fifth of the file and only pays for itself on photographic content, so
+    panels of flat colour are better off without it.
+    """
+    step = f"setpts={speed}*PTS," if speed != 1.0 else ""
+    use = "dither=bayer:bayer_scale=3" if dither else "dither=none"
+    vf = (f"{step}fps={fps},scale={width}:-2:flags=lanczos,split[a][b];"
           f"[a]palettegen=max_colors={colors}:stats_mode=diff[p];"
-          f"[b][p]paletteuse=dither=bayer:bayer_scale=3")
+          f"[b][p]paletteuse={use}")
     subprocess.run(["ffmpeg", "-y", "-i", str(mp4), "-vf", vf, "-loop", "0", str(gif)],
                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return gif.stat().st_size

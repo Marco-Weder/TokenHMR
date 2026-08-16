@@ -16,7 +16,7 @@
 >   skeleton-masked attention variant, resumable training, and the latent-space analysis
 >   and visualisation scripts.
 > - **`tokenhmr/`** (stage 2, downstream model): a token cross-entropy loss with
->   label-purity gating, severed / straight-through / Gumbel training-time decodes,
+>   label-purity gating, detached / straight-through / Gumbel training-time decodes,
 >   decoder-aware token targets, token metrics, and the token-ambiguity analysis.
 > - **`thesis_figures/`**: the scripts that produce the figures of the thesis.
 >
