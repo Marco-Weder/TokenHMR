@@ -86,8 +86,12 @@ def stage_infer(args, boxes, valid, tag, ckpt, cfg):
     if cache.is_file() and not args.recompute_infer:
         print(f"inference [{tag}]: reusing {paths.relative(cache)}")
         return dict(np.load(cache, allow_pickle=True))
+    # tokens=False: the token panels are specific to this thesis's transformer
+    # tokenizer, and the released model uses a different one. Only the mesh is
+    # being compared, so nothing is encoded.
     data = run_inference(args.video, boxes, valid, args.stride,
-                         str(ckpt), str(cfg), args.batch_size, args.smooth)
+                         str(ckpt), str(cfg), args.batch_size, args.smooth,
+                         tokens=False)
     np.savez_compressed(cache, **data)
     print(f"inference [{tag}]: wrote {paths.relative(cache)}")
     return data
@@ -108,19 +112,25 @@ def compose(args, boxes, valid, A, B, faces_a, faces_b):
     frames_idx = list(range(0, args.max_frames * args.stride, args.stride))
     n = min(len(frames_idx), A["verts"].shape[0], B["verts"].shape[0])
 
-    import yaml
     from tokenhmr.lib.configs import get_config
     cfg_a = get_config(str(args.a_model_config), merge=False)
-    cfg_b = get_config(str(args.b_model_config), merge=False)
-    overlay_a = MeshOverlay(cfg_a, faces_a, W, H)
-    overlay_b = MeshOverlay(cfg_b, faces_b, W, H)
+    # One renderer for both panels. Two live pyrender offscreen contexts fight
+    # over EGL, and the SMPL topology is identical between the two models, so a
+    # second renderer would buy nothing anyway.
+    assert np.array_equal(faces_a, faces_b), "the two models use different mesh topologies"
+    overlay = MeshOverlay(cfg_a, faces_a, W, H)
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     mp4 = out_dir / "gymnasts_ours_vs_upstream.mp4"
 
+    # Two panels side by side, so each is half the output width. The figure is
+    # that panel height plus explicit bands for the title above and the caption
+    # below, otherwise both are drawn outside the canvas and clipped.
+    panel_h_px = (args.width / 2.0) * H / W
+    head_px, foot_px = 30.0, 30.0
     fig_w = args.width / 100.0
-    fig_h = (args.width * H / W / 2.0) / 100.0
+    fig_h = (panel_h_px + head_px + foot_px) / 100.0
     writer = None
 
     sub_a, sub_b = _subtitle(args.a_run), _subtitle(args.b_run)
@@ -133,7 +143,7 @@ def compose(args, boxes, valid, A, B, faces_a, faces_b):
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
 
         panels = []
-        for data, overlay, colour in ((A, overlay_a, MESH_A), (B, overlay_b, MESH_B)):
+        for data, colour in ((A, MESH_A), (B, MESH_B)):
             vs, ts = [], []
             for j in range(valid.shape[1]):
                 v = data["verts"][k, j]
@@ -157,11 +167,13 @@ def compose(args, boxes, valid, A, B, faces_a, faces_b):
         ):
             ax.imshow(np.clip(panel, 0, 1))
             ax.set_axis_off()
-            ax.set_title(title, fontsize=11, pad=6)
+            ax.set_title(title, fontsize=11, pad=8)
             if sub:
-                ax.text(0.5, -0.03, sub, transform=ax.transAxes, ha="center", va="top",
+                ax.text(0.5, -0.04, sub, transform=ax.transAxes, ha="center", va="top",
                         fontsize=8.5, color="0.35")
-        fig.subplots_adjust(left=0.005, right=0.995, top=0.93, bottom=0.06, wspace=0.01)
+        fig.subplots_adjust(left=0.005, right=0.995, wspace=0.012,
+                            top=1.0 - head_px / (fig_h * 100.0),
+                            bottom=foot_px / (fig_h * 100.0))
         fig.canvas.draw()
         img = np.asarray(fig.canvas.buffer_rgba())[..., :3]
         plt.close(fig)
@@ -175,8 +187,7 @@ def compose(args, boxes, valid, A, B, faces_a, faces_b):
             print(f"  composed {k + 1}/{n}")
 
     cap.release()
-    overlay_a.close()
-    overlay_b.close()
+    overlay.close()
     if writer is not None:
         writer.stdin.close()
         writer.wait()

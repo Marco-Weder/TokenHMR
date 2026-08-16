@@ -9,7 +9,7 @@ to the ones that were reviewed.
 Pick the frame ids from <out>/<dataset>/ranking.csv (the `dataset_index` column,
 which is also the filename in compare/ and individual/).
 
-    ~/miniconda3/envs/thesis-HMR/bin/python thesis_figures/make_decode_figure.py \
+    python -m thesis_figures.plot.make_decode_figure \
         --frames 23000,29500,4500
 
 Output: <repo>/thesis/images/downstream/decode_qualitative.pdf

@@ -12,7 +12,7 @@ Reads the geometry dumped by tokenization/render_token_viz.py (swap_geometry.npz
 the expensive CPU decode/swap is not repeated here.
 
 Run from the repo's tokenhmr folder in the thesis-HMR env:
-    ~/miniconda3/envs/thesis-HMR/bin/python thesis_figures/render_token_viz_blender.py
+    python -m thesis_figures.plot.render_token_viz_blender
 
 Output: thesis/images/latent/token_visualization_contrast.pdf
 """

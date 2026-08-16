@@ -9,7 +9,7 @@ its space -- the cosine codebooks crowd onto a low-dimensional shell (low effect
 rank) while the FSQ grids fill the space.
 
 Reads tokenization/output/token_maps/<label>.npz (from analyze_token_maps.py).
-Run: ~/miniconda3/envs/thesis-HMR/bin/python thesis_figures/plot_latent_scatter.py
+Run: python -m thesis_figures.plot.plot_latent_scatter
 Output: thesis/images/appendix/latent_space_all.pdf
 """
 import json

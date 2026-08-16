@@ -16,7 +16,7 @@ Small display nudges declutter genuinely-adjacent joints; the mesh still shows t
 true location.
 
 Run with the project env (from the tokenhmr folder; offscreen render needs EGL):
-    ~/miniconda3/envs/thesis-HMR/bin/python thesis_figures/gen_skeleton_mask.py
+    python -m thesis_figures.plot.gen_skeleton_mask
 
 Outputs:
     <repo>/thesis/images/tokenizer/skeleton_mesh.png

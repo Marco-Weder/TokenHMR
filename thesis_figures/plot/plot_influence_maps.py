@@ -9,7 +9,7 @@ tokenization/output/token_maps/<label>.npz (produced by analyze_token_maps.py).
   - Fig B.1: an 8-panel grid, one influence map per tokenizer (each normalised to
     its own scale so the token->joint structure is visible across scales).
 
-Run: ~/miniconda3/envs/thesis-HMR/bin/python thesis_figures/plot_influence_maps.py
+Run: python -m thesis_figures.plot.plot_influence_maps
 Outputs: thesis/images/latent/token_influence_fsq.pdf
          thesis/images/appendix/influence_all_tokenizers.pdf
 """

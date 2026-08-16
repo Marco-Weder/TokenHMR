@@ -14,7 +14,7 @@ Reads the arrays dumped by tokenization/dump_code_separation.py (same metric and
 set as Table 4.4, so the annotated R matches).
 
 Run with the project env (from the tokenhmr folder):
-    ~/miniconda3/envs/thesis-HMR/bin/python thesis_figures/plot_code_separation.py
+    python -m thesis_figures.plot.plot_code_separation
 
 Output: <repo>/thesis/images/latent/code_separation.pdf
 """

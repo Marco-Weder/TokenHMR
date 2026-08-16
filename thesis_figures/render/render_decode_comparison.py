@@ -26,7 +26,7 @@ Two passes, cached separately so re-rendering never re-runs the network:
            strips, ranked contact sheets and ranking.csv
 
 Run with the project env, from the tokenhmr folder:
-    ~/miniconda3/envs/thesis-HMR/bin/python thesis_figures/render_decode_comparison.py \
+    python -m thesis_figures.plot.render_decode_comparison \
         --dataset 3DPW-TEST --stride 20
 
 Output goes to tokenhmr/results/qualitative_decode/ -- deliberately NOT into the

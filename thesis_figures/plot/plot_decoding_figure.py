@@ -16,7 +16,7 @@ Runs on CPU by default: the GPU is usually busy with training, and this only nee
 handful of forward passes. Pass --device cuda to override.
 
 Usage (from the tokenhmr/ directory):
-  PYOPENGL_PLATFORM=egl ~/miniconda3/envs/thesis-HMR/bin/python \
+  PYOPENGL_PLATFORM=egl python \
       thesis_figures/plot_decoding_figure.py --checkpoint <slim.ckpt> --scan 40
 """
 import os

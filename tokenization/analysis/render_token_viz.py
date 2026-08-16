@@ -13,7 +13,7 @@ codebook (FSQ) this deforms a limb; on a near-duplicate one (cosine) it barely m
 Decode/SMPL on CPU (GPU busy); pyrender does the small offscreen render on the GPU.
 
 Run from tokenization/ in the thesis-HMR env:
-    ~/miniconda3/envs/thesis-HMR/bin/python render_token_viz.py
+    python render_token_viz.py
 
 Outputs: thesis/images/latent/token_visualization_contrast.pdf
          thesis/images/appendix/tokenviz_all_tokenizers.pdf

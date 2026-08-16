@@ -12,7 +12,7 @@ pose can be picked; the first pose is also saved as the default file wired into
 the thesis.
 
 Run with the project env (from the tokenhmr folder):
-    ~/miniconda3/envs/thesis-HMR/bin/python thesis_figures/render_smpl_figure.py
+    python -m thesis_figures.plot.render_smpl_figure
 
 Output: <repo>/thesis/images/smpl/smpl_decomposition.png  (+ _p<idx>.png per candidate)
 """

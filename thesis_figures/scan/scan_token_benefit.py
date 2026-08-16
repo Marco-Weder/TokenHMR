@@ -14,7 +14,7 @@ aggregate joint error does not penalise it for doing so. So we look for frames w
 
 Stage 1 (GPU) runs both models; stage 2 (CPU) scores the manifold residual.
 
-    ~/miniconda3/envs/thesis-HMR/bin/python thesis_figures/scan_token_benefit.py --scan 300
+    python -m thesis_figures.plot.scan_token_benefit --scan 300
 """
 import argparse, os, sys
 from pathlib import Path

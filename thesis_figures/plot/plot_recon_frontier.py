@@ -15,7 +15,7 @@ The numbers are hard-coded from Table 4.3 (tab:token-target-quality) in
 experimentsandresults.tex -- if a cell there changes, update the P list below.
 
 Run with the project env (from the tokenhmr folder):
-    ~/miniconda3/envs/thesis-HMR/bin/python thesis_figures/plot_recon_frontier.py
+    python -m thesis_figures.plot.plot_recon_frontier
 
 Output: <repo>/thesis/images/tokenizer/recon_stability_frontier.pdf
 """

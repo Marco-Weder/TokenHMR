@@ -15,7 +15,7 @@ Reads the consistent 8-tokenizer / 2048-pose run produced by
 tokenization/analyze_codebook_geometry.py.
 
 Run with the project env (from the tokenhmr folder):
-    ~/miniconda3/envs/thesis-HMR/bin/python thesis_figures/plot_codebook_geometry.py
+    python -m thesis_figures.plot.plot_codebook_geometry
 
 Output: <repo>/thesis/images/latent/codebook_distinctness.pdf
 """

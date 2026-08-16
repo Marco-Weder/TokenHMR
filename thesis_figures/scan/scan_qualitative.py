@@ -6,7 +6,7 @@ rotation error against the ground-truth fit. The per-joint errors let the distal
 claim (head and feet recovered better under cross-entropy) be checked rather than
 assumed, and let frames be ranked by it.
 
-    ~/miniconda3/envs/thesis-HMR/bin/python thesis_figures/scan_qualitative.py --scan 400
+    python -m thesis_figures.plot.scan_qualitative --scan 400
 """
 import argparse, os, sys
 from pathlib import Path

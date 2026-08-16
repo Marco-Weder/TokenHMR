@@ -10,7 +10,7 @@ Plotting is done separately by thesis_figures/plot_influence_maps.py and
 plot_latent_scatter.py. Heavy math on CPU (GPU usually busy; model hardcodes .cuda()).
 
 Run from tokenization/ in the thesis-HMR env:
-    ~/miniconda3/envs/thesis-HMR/bin/python analyze_token_maps.py
+    python analyze_token_maps.py
 
 Output: output/token_maps/<label>.npz  (+ index.json)
 """

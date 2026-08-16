@@ -298,10 +298,15 @@ def _smooth_rotations(rotmat, k):
     return rot6d_to_rotmat(t).reshape(F, J, 3, 3).numpy()
 
 
-def run_inference(video, boxes, valid, stride, ckpt, model_config, batch_size, smooth):
+def run_inference(video, boxes, valid, stride, ckpt, model_config, batch_size, smooth,
+                  tokens=True):
     """Run TokenHMR on every tracked box and encode each predicted pose into token indices.
 
     Returns a dict of arrays; NaN / -1 mark frames where a track is absent.
+
+    With ``tokens=False`` the pose is recovered but nothing is encoded. The token
+    panels are specific to this thesis's transformer tokenizer, and a comparison
+    against a model built on a different one only needs the mesh.
     """
     from tokenhmr.lib.models import load_tokenhmr
     from tokenhmr.lib.datasets.vitdet_dataset import ViTDetDataset
@@ -312,9 +317,11 @@ def run_inference(video, boxes, valid, stride, ckpt, model_config, batch_size, s
     model, model_cfg = load_tokenhmr(checkpoint_path=ckpt, model_cfg=model_config,
                                      is_train_state=False, is_demo=True)
     model = model.to(DEVICE).eval()
-    tok_path = model_cfg.MODEL.get('TOKENIZER_CHECKPOINT_PATH', '')
-    assert tok_path, 'model config has no MODEL.TOKENIZER_CHECKPOINT_PATH'
-    enc = _get_gt_encoder(tok_path, DEVICE)
+    enc = None
+    if tokens:
+        tok_path = model_cfg.MODEL.get('TOKENIZER_CHECKPOINT_PATH', '')
+        assert tok_path, 'model config has no MODEL.TOKENIZER_CHECKPOINT_PATH'
+        enc = _get_gt_encoder(tok_path, DEVICE)
 
     F, N = valid.shape
     T = int(model_cfg.MODEL.SMPL_HEAD.TOKENIZER.TOKEN_NUM)
@@ -360,22 +367,26 @@ def run_inference(video, boxes, valid, stride, ckpt, model_config, batch_size, s
                                       batch['box_size'].float(), img_size, sfl)
 
             bp = out['pred_smpl_params']['body_pose'].float()
+            te = tp = lat = None
             with torch.no_grad():
-                te = enc.encode(bp[:, :enc.num_joints])
+                if enc is not None:
+                    te = enc.encode(bp[:, :enc.num_joints])
                 # The pre-quantisation latent is a transformer-tokenizer hook. The
                 # vanilla convolutional tokenizer has no equivalent, so the latent
                 # panels are simply unavailable for it and the rest still works.
-                lat = (enc._encode_continuous(bp[:, :enc.num_joints])
-                       if hasattr(enc, '_encode_continuous') else None)
-            tp = out['cls_logits'][-B:].argmax(-1)
+                    lat = (enc._encode_continuous(bp[:, :enc.num_joints])
+                           if hasattr(enc, '_encode_continuous') else None)
+                    tp = out['cls_logits'][-B:].argmax(-1)
 
             verts[f, n_slots] = out['pred_vertices'].detach().cpu().numpy().astype(np.float16)
             cam_t[f, n_slots] = full_t.detach().cpu().numpy()
             grot[f, n_slots]  = out['pred_smpl_params']['global_orient'].float().cpu().numpy()
             bpose[f, n_slots] = bp.cpu().numpy()
             betas[f, n_slots] = out['pred_smpl_params']['betas'].float().cpu().numpy()
-            tok_enc[f, n_slots]  = te.cpu().numpy()
-            tok_pred[f, n_slots] = tp.cpu().numpy()
+            if te is not None:
+                tok_enc[f, n_slots]  = te.cpu().numpy()
+            if tp is not None:
+                tok_pred[f, n_slots] = tp.cpu().numpy()
             if lat is not None and 0 in n_slots:
                 latent[f] = lat[int(np.nonzero(n_slots == 0)[0][0])].cpu().numpy()
     cap.release()
@@ -407,15 +418,19 @@ def run_inference(video, boxes, valid, stride, ckpt, model_config, batch_size, s
                 be = torch.from_numpy(betas[f, idx_n]).to(DEVICE)
                 so = model.smpl(global_orient=go, body_pose=bp, betas=be, pose2rot=False)
                 verts[f, idx_n] = so.vertices.cpu().numpy().astype(np.float16)
-                tok_enc[f, idx_n] = enc.encode(bp[:, :enc.num_joints]).cpu().numpy()
+                if enc is not None:
+                    tok_enc[f, idx_n] = enc.encode(bp[:, :enc.num_joints]).cpu().numpy()
                 if 0 in idx_n and hasattr(enc, '_encode_continuous'):
                     i0 = int(np.nonzero(idx_n == 0)[0][0])
                     latent[f] = enc._encode_continuous(bp[:, :enc.num_joints])[i0].cpu().numpy()
 
     # Token -> body region, and per-vertex region for painting the mesh, both measured here
     # while the tokenizer and SMPL are still loaded.
-    ref = torch.from_numpy(bpose[valid[:, 0], 0, :enc.num_joints]).to(DEVICE)
-    token_joint = token_joint_map(enc, ref)
+    if enc is None:
+        token_joint = np.zeros((T, 21), np.float32)
+    else:
+        ref = torch.from_numpy(bpose[valid[:, 0], 0, :enc.num_joints]).to(DEVICE)
+        token_joint = token_joint_map(enc, ref)
     lbs = model.smpl.lbs_weights.detach().cpu().numpy()                  # (6890, 24)
     # SMPL joints 0..23 -> body-pose joint index, with the pelvis folded into Spine1 and each
     # hand into its wrist, so every vertex lands on one of the 21 joints the tokens control.
@@ -423,7 +438,8 @@ def run_inference(video, boxes, valid, stride, ckpt, model_config, batch_size, s
                                    [JOINT_NAMES.index('L_Wrist'), JOINT_NAMES.index('R_Wrist')]])
     vert_joint = smpl_to_body[lbs.argmax(1)]
 
-    levels = enc.quantizer._levels.cpu().numpy().tolist() if hasattr(enc.quantizer, '_levels') else []
+    levels = (enc.quantizer._levels.cpu().numpy().tolist()
+              if enc is not None and hasattr(enc.quantizer, '_levels') else [])
 
     del model, enc
     torch.cuda.empty_cache()

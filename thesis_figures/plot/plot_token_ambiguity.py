@@ -16,7 +16,7 @@ Input:  <repo>/tokenhmr/results/ambiguity_gate/damages.npz  (raw per-event damag
 Output: <repo>/thesis/images/downstream/token_ambiguity.pdf
 
 Run with the project env (from the tokenhmr folder):
-    ~/miniconda3/envs/thesis-HMR/bin/python thesis_figures/plot_token_ambiguity.py
+    python -m thesis_figures.plot.plot_token_ambiguity
 """
 import json
 import os

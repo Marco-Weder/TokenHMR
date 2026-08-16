@@ -15,7 +15,7 @@ the model / SMPL code hardcodes `.cuda()` at construction). The overall rotation
 should match the FSQ d4 reconstruction of Table 4.3 (~0.54 deg/joint).
 
 Run from tokenization/ in the thesis-HMR env:
-    ~/miniconda3/envs/thesis-HMR/bin/python analyze_recon_by_dataset.py
+    python analyze_recon_by_dataset.py
 
 Output: output/recon_by_dataset/summary_all.json (numbers for Table 4.5, all tokenizers).
 """

@@ -19,7 +19,7 @@ Figure 4.4. Metric definitions and the FSQ latent bounding are reused verbatim f
 visualize_latent_space.analyze_run so the two never drift.
 
 Run from tokenization/ in the thesis-HMR env:
-    ~/miniconda3/envs/thesis-HMR/bin/python analyze_codebook_geometry.py
+    python analyze_codebook_geometry.py
 
 Output: output/codebook_geometry/summary.json  (consumed by
         thesis_figures/plot_codebook_geometry.py and Table 4.4).

@@ -21,7 +21,7 @@ models agree. To find the frames that separate them, the pool is scored before
 rendering and only the top --top are drawn. See --sort.
 
     # 512-frame pool, render the 48 most off-manifold
-    ~/miniconda3/envs/thesis-HMR/bin/python thesis_figures/render_val_comparison.py \
+    python -m thesis_figures.plot.render_val_comparison \
         --n 512 --top 48 --sort offmanifold
 
 Output: tokenhmr/results/qualitative_val/

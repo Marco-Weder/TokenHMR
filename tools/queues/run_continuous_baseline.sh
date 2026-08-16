@@ -14,9 +14,11 @@
 # ~14.1 h per 200k on this card, so ~28 h for 400k, plus ~10 min eval.
 
 set -uo pipefail
-cd /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr
+# tools/queues/ sits two levels below the repository root.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT"
 
-PY=/home/marco/miniconda3/envs/thesis-HMR/bin/python
+PY="${PY:-python}"
 STAMP=$(date +%Y%m%d_%H%M%S)
 LOGDIR=logs/continuous_${STAMP}
 mkdir -p "${LOGDIR}"
@@ -31,7 +33,7 @@ while pgrep -f 'train\.py datasets=' >/dev/null 2>&1; do
   say "another training holds the GPU; waiting"; sleep 120
 done
 say "continuous baseline starting (400k). logs in ${LOGDIR}"
-say "  free disk: $(df -h /home/marco | awk 'NR==2{print $4}')   GPU: $(nvidia-smi --query-gpu=memory.used --format=csv,noheader)"
+say "  free disk: $(df -h "$ROOT" | awk 'NR==2{print $4}')   GPU: $(nvidia-smi --query-gpu=memory.used --format=csv,noheader)"
 
 if [ -f "${DIR}/checkpoints/last.ckpt" ]; then
   say "checkpoint already present -> skipping training"

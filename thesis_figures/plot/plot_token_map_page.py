@@ -19,7 +19,7 @@ Inputs (from a visualize_token_effects.py run):
 Output: <repo>/thesis/images/appendix/token_map_all_positions.png
 
 Run with the project env (from the tokenhmr folder):
-    ~/miniconda3/envs/thesis-HMR/bin/python thesis_figures/plot_token_map_page.py
+    python -m thesis_figures.plot.plot_token_map_page
 """
 import json
 import os

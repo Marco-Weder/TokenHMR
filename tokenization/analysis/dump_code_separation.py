@@ -9,7 +9,7 @@ busy and the model code hardcodes .cuda() at construction).
 Contrast pair matches Fig 4.7: FSQ d4 vs cosine d4, the two tokenizers at d=4, so
 the pair isolates the quantizer and matches the cosine variant used downstream.
 (near-duplicate). Run from tokenization/ in the thesis-HMR env:
-    ~/miniconda3/envs/thesis-HMR/bin/python dump_code_separation.py
+    python dump_code_separation.py
 
 Output: output/codebook_geometry/separation_arrays.npz
 """

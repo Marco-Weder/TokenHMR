@@ -14,7 +14,7 @@ Numbers are hard-coded from Tables 4.7/4.11/4.10 in experimentsandresults.tex --
 if a cell there changes, update the STEPS list below.
 
 Run with the project env (from the tokenhmr folder):
-    ~/miniconda3/envs/thesis-HMR/bin/python thesis_figures/plot_additive_chain.py
+    python -m thesis_figures.plot.plot_additive_chain
 
 Output: <repo>/thesis/images/downstream/additive_chain.pdf
 """

@@ -34,10 +34,12 @@
 # Resumable: a phase whose run dir already holds last.ckpt is skipped.
 
 set -uo pipefail
-cd /home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr
+# tools/queues/ sits two levels below the repository root.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT"
 
-PY=/home/marco/miniconda3/envs/thesis-HMR/bin/python
-TOKROOT=/home/marco/Exploring-Latent-Representations-for-Human-Mesh-Recovery/external/tokenhmr/tokenization/output
+PY="${PY:-python}"
+TOKROOT="$ROOT/tokenization/output"
 STAMP=$(date +%Y%m%d_%H%M%S)
 LOGDIR=logs/cetok_${STAMP}
 mkdir -p "${LOGDIR}"
@@ -45,9 +47,9 @@ QLOG="${LOGDIR}/queue.log"
 
 say () { echo "[$(date '+%F %T')] $*" | tee -a "${QLOG}"; }
 
-TOK_TFL2=${TOKROOT}/tokenization_transformer_with_fnn_blocks/tokenization_transformer_with_fnn_blocks_ID00_30-04-2026_15-47-30/tokenization_transformer_with_fnn_blocks/best_net.pth
-TOK_CNN=${TOKROOT}/tokenization_cnn_amass_moyo_160tokens/tokenization_cnn_amass_moyo_160tokens_ID00_26-04-2026_00-07-33/tokenization_cnn_amass_moyo_160tokens/best_net.pth
-TOK_COS=${TOKROOT}/tokenization_transformer_cosine_dim4/tokenization_transformer_cosine_dim4_ID00_25-06-2026_18-14-16/tokenization_transformer_cosine_dim4/best_net.pth
+TOK_TFL2=${TOKROOT}/tokenizers/transformer-l2-d256/best_net.pth
+TOK_CNN=${TOKROOT}/tokenizers/cnn-l2-d256/best_net.pth
+TOK_COS=${TOKROOT}/tokenizers/transformer-cosine-d4/best_net.pth
 
 do_eval () {                     # $1=run dir  $2=results prefix
   local run_dir="$1" prefix="$2" ckpt="$1/checkpoints/last.ckpt"
@@ -83,7 +85,7 @@ phase () {
     say "phase ${letter} (${exp}) already has a checkpoint -> skipping training"
   else
     say "phase ${letter}: ${exp}  [type=${ttype} d=${cdim} K=2048]"
-    say "  free disk: $(df -h /home/marco | awk 'NR==2{print $4}')   GPU: $(nvidia-smi --query-gpu=memory.used --format=csv,noheader)"
+    say "  free disk: $(df -h "$ROOT" | awk 'NR==2{print $4}')   GPU: $(nvidia-smi --query-gpu=memory.used --format=csv,noheader)"
     ${PY} tokenhmr/train.py \
       datasets=mix_all experiment=tokenhmr_additive \
       task_name="${task}" exp_name="${exp}" \
@@ -103,7 +105,7 @@ phase () {
 while pgrep -f 'train\.py datasets=' >/dev/null 2>&1; do
   say "another training holds the GPU; waiting"; sleep 120
 done
-FREE=$(df --output=avail -BG /home/marco | tail -1 | tr -dc '0-9')
+FREE=$(df --output=avail -BG "$ROOT" | tail -1 | tr -dc '0-9')
 say "ce-tokenizer queue starting. logs in ${LOGDIR}. free disk ${FREE}G (need ~50G for 3 runs)"
 if [ "${FREE}" -lt 70 ]; then say "!! ABORT: less than 70G free"; exit 1; fi
 
