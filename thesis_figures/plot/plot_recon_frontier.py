@@ -26,7 +26,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
-from repro import paths
+from repro import manifest, paths
 
 HERE = os.path.dirname(os.path.abspath(__file__))          # <repo>/tokenhmr/thesis_figures
 REPO = os.path.dirname(os.path.dirname(HERE))              # <repo>
@@ -46,17 +46,27 @@ FAM = {
     "cos":  ("#009E73", "o"),   # cosine        (EMA cosine)
     "fsq":  ("#D55E00", "D"),   # FSQ
 }
-# (label, x=recon MPJPE [mm], y=S(1deg) [%], family, carried_forward, (dx,dy) label offset, ha, va)
-P = [
-    ("Conv ($\\ell_2$)", 2.27, 24, "conv", True,  ( 6,  9), "left",  "bottom"),
-    ("Tf ($\\ell_2$)",   2.45, 53, "tfl2", True,  ( 9,  0), "left",  "center"),
-    ("cos $d$256",       0.79, 18, "cos",  False, ( 7,  4), "left",  "bottom"),
-    ("skel-mask",        0.60, 14, "cos",  False, ( 8, -3), "left",  "top"),
-    ("cos $d$4",         1.51, 22, "cos",  True,  ( 8, -3), "left",  "top"),
-    ("cos $d$2",         0.56,  7, "cos",  False, ( 7,  2), "left",  "bottom"),
-    ("FSQ $d$4",         2.58, 63, "fsq",  True,  (-8,  6), "right", "bottom"),
-    ("FSQ $d$5",         1.87, 58, "fsq",  False, (-8,  6), "right", "bottom"),
-]
+# Label, family, whether the tokenizer is carried into tab:ce-tokenizer, and the
+# label offset. Those are typography. The coordinates are not: recon MPJPE and
+# S(1 deg) are read from the tokenizer registry, so this figure and
+# tab:token-target-quality cannot disagree.
+STYLE = {
+    "CNN":                ("Conv ($\\ell_2$)", "conv", True,  ( 6,  9), "left",  "bottom"),
+    "Transformer tier1":  ("Tf ($\\ell_2$)",   "tfl2", True,  ( 9,  0), "left",  "center"),
+    "Transformer cosine": ("cos $d$256",      "cos",  False, ( 7,  4), "left",  "bottom"),
+    "Skeleton-masked":    ("skel-mask",       "cos",  False, ( 8, -3), "left",  "top"),
+    "VQ d4":              ("cos $d$4",        "cos",  True,  ( 8, -3), "left",  "top"),
+    "VQ d2":              ("cos $d$2",        "cos",  False, ( 7,  2), "left",  "bottom"),
+    "FSQ d4":             ("FSQ $d$4",        "fsq",  True,  (-8,  6), "right", "bottom"),
+    "FSQ d5":             ("FSQ $d$5",        "fsq",  False, (-8,  6), "right", "bottom"),
+}
+P = []
+for _t in manifest.tokenizers():
+    _label, _fam, _carried, _off, _ha, _va = STYLE[_t["label"]]
+    # Rounded to the precision tab:token-target-quality prints, so the figure
+    # plots the same values the table does rather than fuller ones.
+    P.append((_label, round(_t["recon_mpjpe_mm"], 2), round(_t["stability_pct"]["1"]),
+              _fam, _carried, _off, _ha, _va))
 
 fig, ax = plt.subplots(figsize=(6.6, 4.5))
 

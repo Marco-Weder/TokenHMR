@@ -23,7 +23,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from repro import paths
+from repro import manifest, paths
 
 HERE = os.path.dirname(os.path.abspath(__file__))          # <repo>/tokenhmr/thesis_figures
 REPO = os.path.dirname(os.path.dirname(HERE))              # <repo>
@@ -36,18 +36,25 @@ plt.rcParams.update({
     "axes.linewidth": 0.8, "pdf.fonttype": 42,
 })
 
-# (label over two lines, EMDB PA-MPJPE [mm], run tag, measured?)
-# All four entries are now MEASURED (run_additive_queue.sh phases A-E, finished 2026-08-11).
-# NOTE: this figure was removed from the thesis on 2026-08-11 (the table says it more
-# cleanly); the script is kept in sync with tab:additive-chain but is no longer referenced.
+# Labels and run tags are typography and provenance; the numbers come from the
+# manifest, which checks each one against the value the thesis prints. Editing a
+# number here is therefore not possible, which is the point: the figure and the
+# table cannot drift apart.
+# NOTE: this figure was removed from the thesis on 2026-08-11 (the table says it
+# more cleanly). The script is kept because tab:additive-chain is the same data.
+_CHAIN = [
+    ("Token CE only\n(no gate)",     "chain_nogate_hard"),
+    ("$+$ label-purity\ngate",       "chain_gate_hard"),
+    ("$+$ straight-through\ndecode", "chain_st_hard"),
+    ("$+$ Gumbel\nsampling",         "chain_gumbel_hard"),
+]
 STEPS = [
-    ("Token CE only\n(no gate)",        75.55, "chain_nogate",  True),
-    ("$+$ label-purity\ngate",          54.37, "chain_gate",    True),
-    ("$+$ straight-through\ndecode",    52.28, "chain_st",      True),
-    ("$+$ Gumbel\nsampling",            52.08, "chain_gumbel",  True),
+    (label, manifest.value(run, "EMDB", "hard_mode_re"), run.removesuffix("_hard"), True)
+    for label, run in _CHAIN
 ]
 
-POSE_BASELINE = 57.06        # Table 4.7, pose losses only, EMDB PA-MPJPE
+# Table 4.7, pose losses only, EMDB PA-MPJPE
+POSE_BASELINE = manifest.value("fsq_baseline_full_soft", "EMDB", "soft_mode_re")
 LINE = "#0072B2"             # Okabe-Ito blue
 DROP = "#009E73"             # Okabe-Ito green (improvements)
 REF = "#D55E00"              # Okabe-Ito vermillion (baseline line)
