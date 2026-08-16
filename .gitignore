@@ -165,3 +165,9 @@ thesis_figures/downstream_candidates/
 .vscode/
 tokenization/models/fsq.pdf
 thesis_figures/cache/
+
+# Reorganisation (2026-08): figure sink used when no LaTeX checkout is present,
+# and the contact sheets the render scripts emit while a candidate is chosen.
+/figures/
+thesis_figures/*_sheet*.png
+thesis_figures/*_candidates*.png
