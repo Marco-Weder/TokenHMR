@@ -3,8 +3,10 @@ import os
 os.environ['PYOPENGL_PLATFORM'] = 'egl'
 import pyrootutils
 
-root_dir = __file__.replace(os.path.basename(__file__), '')
-root = pyrootutils.setup_root(root_dir, dotenv=True, pythonpath=True)
+# Anchor on the .project-root sentinel at the repository root. Without an
+# explicit indicator pyrootutils stops at the first setup.py it finds, which
+# used to resolve PROJECT_ROOT to tokenhmr/ and scatter run output there.
+root = pyrootutils.setup_root(__file__, indicator=".project-root", dotenv=True, pythonpath=True)
 
 from pathlib import Path
 import hydra
@@ -17,11 +19,11 @@ from pytorch_lightning.plugins.environments import SLURMEnvironment
 from pytorch_lightning.callbacks import TQDMProgressBar
 
 from yacs.config import CfgNode
-from lib.configs import dataset_config
-from lib.datasets import TokenHMRDataModule
-from lib.models.tokenhmr import TokenHMR
-from lib.utils.pylogger import get_pylogger
-from lib.utils.misc import task_wrapper, log_hyperparameters, get_grid_search_configs
+from tokenhmr.lib.configs import dataset_config
+from tokenhmr.lib.datasets import TokenHMRDataModule
+from tokenhmr.lib.models.tokenhmr import TokenHMR
+from tokenhmr.lib.utils.pylogger import get_pylogger
+from tokenhmr.lib.utils.misc import task_wrapper, log_hyperparameters, get_grid_search_configs
 
 # PyTorch >=2.6 flipped torch.load's `weights_only` default to True. Every checkpoint load the repo
 # controls already passes weights_only=False (see lib/utils/misc.py, token_metrics.py, backbones/),

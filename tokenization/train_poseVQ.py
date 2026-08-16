@@ -11,23 +11,23 @@ import torch.optim as optim
 
 import wandb
 
-from dataset.dataset_poseVQ import get_dataloader
-import utils.losses as losses
-import utils.utils_model as utils_model
-from utils.pose_visualize import visualize_from_mesh
-from utils.eval_poseVQ import eval_pose_vqvae, reset_err_list, init_best_scores, set_random_seed, get_loggers, gt_from_batch, calculate_pck, PCK_THRESHOLDS
-from options.option_posevq import run_grid_search_experiments
+from tokenization.dataset.dataset_poseVQ import get_dataloader
+from tokenization.utils import losses as losses
+from tokenization.utils import utils_model as utils_model
+from tokenization.utils.pose_visualize import visualize_from_mesh
+from tokenization.utils.eval_poseVQ import eval_pose_vqvae, reset_err_list, init_best_scores, set_random_seed, get_loggers, gt_from_batch, calculate_pck, PCK_THRESHOLDS
+from tokenization.options.option_posevq import run_grid_search_experiments
 
 
 def get_model(hparams, add_noise=False):
     if hparams.ARCH.MODEL_NAME in ['vanilla', 'vanilla-v1']:
-        from models.vanilla_pose_vqvae import VanillaTokenizer
+        from tokenization.models.vanilla_pose_vqvae import VanillaTokenizer
         net = VanillaTokenizer(hparams.ARCH, add_noise=add_noise)
     elif hparams.ARCH.MODEL_NAME == "transformer":
-        from models.transformer_pose_vqvae import TransformerTokenizer
+        from tokenization.models.transformer_pose_vqvae import TransformerTokenizer
         net = TransformerTokenizer(hparams.ARCH, add_noise=add_noise)
     elif hparams.ARCH.MODEL_NAME == "gnn":
-        from models.gnn_pose_vqvae import GNNTokenizer
+        from tokenization.models.gnn_pose_vqvae import GNNTokenizer
         net = GNNTokenizer(hparams.ARCH, add_noise=add_noise)
     else:
         raise NotImplementedError(f'{hparams.ARCH.MODEL_NAME} not implemented yet')
@@ -175,9 +175,9 @@ def main(hparams):
     err_list = reset_err_list('tr')
 
     if hparams.ARCH.MODEL_NAME in ('vanilla', 'vanilla-v1'):
-        from models.vanilla_pose_vqvae import body_model
+        from tokenization.models.vanilla_pose_vqvae import body_model
     else:
-        from models.transformer_pose_vqvae import body_model
+        from tokenization.models.transformer_pose_vqvae import body_model
 
     ##### ---- Unified training loop (warmup + main, both logged to wandb) ---- #####
     # Codebook-collapse fix: during warmup we call net(gt_pose) WITHOUT global_step,

@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "thesis-hmr"
+version = "1.0.0"
+description = "Pose tokenizers for human mesh recovery: stage-1 tokenizer, stage-2 regressor, and the analyses behind the thesis"
+requires-python = ">=3.10,<3.11"
+
+# Deliberately empty. This distribution exists to put the project's packages on
+# sys.path so that no script depends on the working directory. Runtime
+# dependencies are installed separately from env/requirements.txt, because
+# resolving the CUDA stack here would make `pip install -e .` fight the
+# carefully ordered install described in env/system-requirements.md.
+dependencies = []
+
+[project.scripts]
+thesis = "repro.cli:main"
+
+[tool.setuptools]
+# Explicit, never `find:`. Auto-discovery would sweep in data/, logs/,
+# results/ and dataset_dir/, which together hold about 1.4 TB.
+packages = [
+    "repro",
+    "tokenization",
+    "tokenization.analysis",
+    "tokenization.models",
+    "tokenization.utils",
+    "tokenization.options",
+    "tokenization.dataset",
+    "tokenhmr",
+    "tokenhmr.lib",
+    "tokenhmr.lib.configs",
+    "tokenhmr.lib.datasets",
+    "tokenhmr.lib.models",
+    "tokenhmr.lib.models.backbones",
+    "tokenhmr.lib.models.components",
+    "tokenhmr.lib.models.heads",
+    "tokenhmr.lib.utils",
+    "thesis_figures",
+    "thesis_figures.plot",
+    "thesis_figures.render",
+    "thesis_figures.scan",
+]
+
+[tool.setuptools.package-data]
+"tokenhmr.lib" = ["configs_hydra/**/*.yaml", "configs/*.yaml", "configs/*.py"]
+"tokenization" = ["configs/*.yaml"]

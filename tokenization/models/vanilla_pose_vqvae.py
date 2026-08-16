@@ -64,7 +64,7 @@ class PoseSPEncoderV1(nn.Module):
         self.target_tokens = target_tokens
         self.step_multiplier_mapping = step_multiplier_mapping()
         if self.add_noise:
-            from utils.skeleton import get_smplx_body_parts
+            from tokenization.utils.skeleton import get_smplx_body_parts
             self.smplx_body_parts = get_smplx_body_parts()
         encoder_layers.append(nn.Conv1d(input_dim, width, 3, 1, 1))
         encoder_layers.append(nn.ReLU())

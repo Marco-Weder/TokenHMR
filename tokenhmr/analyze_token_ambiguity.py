@@ -38,16 +38,11 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-# Make the sibling `tokenization` package importable (mirrors token_classifier's path setup).
-_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
-
-from lib.configs import dataset_eval_config
-from lib.datasets import create_dataset
-from lib.models import load_tokenhmr
-from lib.utils import recursive_to
-from lib.utils.geometry import aa_to_rotmat
+from tokenhmr.lib.configs import dataset_eval_config
+from tokenhmr.lib.datasets import create_dataset
+from tokenhmr.lib.models import load_tokenhmr
+from tokenhmr.lib.utils import recursive_to
+from tokenhmr.lib.utils.geometry import aa_to_rotmat
 
 # Damage histogram bins (mm), matching the supervisor's proposal.
 BIN_EDGES = [0.0, 5.0, 10.0, 20.0, 50.0, float('inf')]

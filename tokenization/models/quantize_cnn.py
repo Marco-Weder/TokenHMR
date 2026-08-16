@@ -3,12 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-try:
-    # Stage-1 tokenizer training runs with cwd=tokenization/, so `utils` is top-level.
-    from utils.utils_model import codebook_usage_stats
-except ModuleNotFoundError:
-    # Imported as a package from TokenHMR (stage 2): `tokenization` is on sys.path.
-    from tokenization.utils.utils_model import codebook_usage_stats
+from tokenization.utils.utils_model import codebook_usage_stats
 
 class QuantizeEMAReset(nn.Module):
     def __init__(self, nb_code, code_dim, dist_metric='l2'):
@@ -27,7 +22,10 @@ class QuantizeEMAReset(nn.Module):
         # Codebook-usage stats from the most recent forward (read by the train/eval loops).
         self.last_code_counts = None
         self.codebook_stats = {}
-        self.register_buffer('codebook', torch.zeros(self.nb_code, self.code_dim).cuda())
+        codebook = torch.zeros(self.nb_code, self.code_dim)
+        # .cuda() at construction is what the trained checkpoints were built
+        # with; the guard only lets the module also load on a CPU-only host.
+        self.register_buffer('codebook', codebook.cuda() if torch.cuda.is_available() else codebook)
 
     def _tile(self, x):
         nb_code_x, code_dim = x.shape
@@ -348,7 +346,10 @@ class QuantizeEMA(nn.Module):
         self.init = False
         self.code_sum = None
         self.code_count = None
-        self.register_buffer('codebook', torch.zeros(self.nb_code, self.code_dim).cuda())
+        codebook = torch.zeros(self.nb_code, self.code_dim)
+        # .cuda() at construction is what the trained checkpoints were built
+        # with; the guard only lets the module also load on a CPU-only host.
+        self.register_buffer('codebook', codebook.cuda() if torch.cuda.is_available() else codebook)
 
     def _tile(self, x):
         nb_code_x, code_dim = x.shape

@@ -87,11 +87,6 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib.patches import Rectangle
 
-# The sibling `tokenization` package (the frozen stage-1 tokenizer) lives one level up.
-_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
-
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # --------------------------------------------------------------------------- #
@@ -183,7 +178,7 @@ def detect_and_track(video, n_frames, stride, det_size, score_thr, iou_thr, max_
     from pathlib import Path
     import detectron2.data.transforms as T
     from detectron2.config import LazyConfig
-    from lib.utils.utils_detectron2 import DefaultPredictor_Lazy
+    from tokenhmr.lib.utils.utils_detectron2 import DefaultPredictor_Lazy
     import lib
 
     cfg_path = Path(lib.__file__).parent / 'configs' / 'cascade_mask_rcnn_vitdet_h_75ep.py'
@@ -270,7 +265,7 @@ def _rotmat_to_rot6d(rotmat):
 
 
 def _check_rot6d_roundtrip():
-    from lib.utils.geometry import rot6d_to_rotmat
+    from tokenhmr.lib.utils.geometry import rot6d_to_rotmat
     q = torch.linalg.qr(torch.randn(8, 3, 3))[0]
     q = q * torch.sign(torch.linalg.det(q))[:, None, None]
     back = rot6d_to_rotmat(_rotmat_to_rot6d(q).reshape(-1, 6)).reshape(-1, 3, 3)
@@ -288,7 +283,7 @@ def _smooth_rotations(rotmat, k):
     and re-running Gram-Schmidt is the cheap standard fix and is exactly the parameterization
     the head already predicts in.
     """
-    from lib.utils.geometry import rot6d_to_rotmat
+    from tokenhmr.lib.utils.geometry import rot6d_to_rotmat
     if k <= 1:
         return rotmat
     F, J = rotmat.shape[:2]
@@ -309,11 +304,11 @@ def run_inference(video, boxes, valid, stride, ckpt, model_config, batch_size, s
 
     Returns a dict of arrays; NaN / -1 mark frames where a track is absent.
     """
-    from lib.models import load_tokenhmr
-    from lib.datasets.vitdet_dataset import ViTDetDataset
-    from lib.utils import recursive_to
-    from lib.utils.renderer import cam_crop_to_full
-    from lib.utils.token_metrics import _get_gt_encoder
+    from tokenhmr.lib.models import load_tokenhmr
+    from tokenhmr.lib.datasets.vitdet_dataset import ViTDetDataset
+    from tokenhmr.lib.utils import recursive_to
+    from tokenhmr.lib.utils.renderer import cam_crop_to_full
+    from tokenhmr.lib.utils.token_metrics import _get_gt_encoder
 
     model, model_cfg = load_tokenhmr(checkpoint_path=ckpt, model_cfg=model_config,
                                      is_train_state=False, is_demo=True)
@@ -496,7 +491,7 @@ class MeshOverlay:
 
     def __init__(self, model_cfg, faces, width, height):
         import pyrender
-        from lib.utils.renderer import Renderer
+        from tokenhmr.lib.utils.renderer import Renderer
         self.pyrender = pyrender
         self.base = Renderer(model_cfg, faces)
         self.faces = faces
@@ -517,7 +512,7 @@ class MeshOverlay:
         scene.add_node(cam_node)
         self.base.add_point_lighting(scene, cam_node)
         self.base.add_lighting(scene, cam_node)
-        from lib.utils.renderer import create_raymond_lights
+        from tokenhmr.lib.utils.renderer import create_raymond_lights
         for node in create_raymond_lights():
             scene.add_node(node)
         color, _ = self.r.render(scene, flags=self.pyrender.RenderFlags.RGBA)
@@ -807,7 +802,7 @@ def build_and_render(data, args, video_meta):
         trail = head = None
 
     # ---- renderer + per-vertex colors
-    from lib.configs import get_config
+    from tokenhmr.lib.configs import get_config
     model_cfg = get_config(args.model_config)
     overlay = MeshOverlay(model_cfg, data['faces'], vw, vh)
     vj = data['vert_joint'].astype(int)
@@ -1096,7 +1091,7 @@ def output_tags(model_config, checkpoint):
     them. The run tag keeps two stage-2 runs that share a tokenizer -- e.g. FSQ with and without
     token CE -- from overwriting each other's files inside that one folder.
     """
-    from lib.configs import get_config
+    from tokenhmr.lib.configs import get_config
     tok_path = get_config(model_config).MODEL.get('TOKENIZER_CHECKPOINT_PATH', '')
     m = re.search(r'([^/]+?)_ID\d+_(\d{2}-\d{2}-\d{4})', tok_path)
     if m:
@@ -1109,7 +1104,7 @@ def output_tags(model_config, checkpoint):
 
 
 def _smpl_faces(model_config):
-    from lib.configs import get_config
+    from tokenhmr.lib.configs import get_config
     import smplx
     cfg = get_config(model_config)
     body = smplx.SMPLLayer(model_path=cfg.SMPL.MODEL_PATH, gender=cfg.SMPL.GENDER, num_betas=10)

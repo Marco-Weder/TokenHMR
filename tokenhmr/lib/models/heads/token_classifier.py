@@ -5,10 +5,24 @@ import torch.nn.functional as F
 from .utils import (constant_init, normal_init)
 from .modules import MixerLayer, FCBlock, BasicBlock
 import sys, os
-sys.path.append(os.path.join(__file__.replace(os.path.basename(__file__), ''), '..', '..', '..', '..'))
 
-from tokenization.models.vanilla_pose_vqvae import DecodeTokens as VanillaDecodeTokens
-from tokenization.models.transformer_pose_vqvae import TransformerDecodeTokens
+
+def _decode_tokens_class(tokenizer_type):
+    """Return the frozen-decoder class for a tokenizer type.
+
+    Imported here rather than at module scope because the tokenizer modules
+    import back into tokenhmr.lib.models, and resolving that at import time is
+    a cycle. Deferring it to construction breaks the cycle without changing
+    which class is used.
+    """
+    key = tokenizer_type.capitalize()
+    if key == "Vanilla":
+        from tokenization.models.vanilla_pose_vqvae import DecodeTokens
+        return DecodeTokens
+    if key == "Transformer":
+        from tokenization.models.transformer_pose_vqvae import TransformerDecodeTokens
+        return TransformerDecodeTokens
+    raise ValueError(f"unknown tokenizer type {tokenizer_type!r}")
 
 class Proxy(object):
     def __init__(self, tokenizer):
@@ -123,7 +137,7 @@ class TokenClassfier(nn.Module):
             self.class_pred_layer = nn.Linear(self.hidden_dim, self.token_class_num)
 
         # Use the pretrained decoder
-        tokenizer_proxy = Proxy(eval(f'{tokenizer_type.capitalize()}DecodeTokens')(tokenizer_checkpoint_path))
+        tokenizer_proxy = Proxy(_decode_tokens_class(tokenizer_type)(tokenizer_checkpoint_path))
         self.tokenize = tokenizer_proxy.tokenize
         if self.vqhps_queries:
             # The classifier geometry must match the frozen decoder's checkpoint, otherwise the

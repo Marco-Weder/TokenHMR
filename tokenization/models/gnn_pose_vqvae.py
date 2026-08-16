@@ -33,16 +33,13 @@ from .rotation_utils import matrix_to_rotation_6d, rotation_6d_to_matrix, matrix
 
 # Reuse the (skeleton) adjacency builder so the GNN and the transformer's kinematic PE share
 # the exact same kinematic tree.
-from utils.skeleton import build_skeleton_adjacency
+from tokenization.utils.skeleton import build_skeleton_adjacency
 
 # Import the cross-attention components the same way transformer_pose_vqvae does (bypassing
 # tokenhmr/lib/models/__init__.py to avoid a circular import). We deliberately do NOT import
 # from transformer_pose_vqvae itself: that module loads the SMPL-H body model at import time,
 # and we want this module to import cleanly for shape/CPU tests with mesh_inference=False.
-_models_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../tokenhmr/lib/models'))
-if _models_dir not in sys.path:
-    sys.path.insert(0, _models_dir)
-from components.pose_transformer import CrossAttention, TransformerCrossAttn, FeedForward  # noqa: E402
+from tokenhmr.lib.models.components.pose_transformer import CrossAttention, TransformerCrossAttn, FeedForward  # noqa: E402
 
 
 def _make_cross_attn(dim, context_dim, heads, depth, mlp_dim, dropout):
@@ -183,7 +180,7 @@ class GNNTokenizer(nn.Module):
         self.add_noise = add_noise
         self.step_multiplier_mapping = step_multiplier_mapping()
         if self.add_noise:
-            from utils.skeleton import get_smplx_body_parts
+            from tokenization.utils.skeleton import get_smplx_body_parts
             self.smplx_body_parts = get_smplx_body_parts()
 
         self.num_tokens = getattr(arch_params, 'NUM_TOKENS', 160)

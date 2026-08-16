@@ -10,8 +10,6 @@ import wandb  # <-- ADDED WANDB IMPORT
 from yacs.config import CfgNode
 
 import sys, os
-sys.path.append(os.path.join(__file__.replace(os.path.basename(__file__), ''), '..', '..', '..'))
-
 from ..utils import SkeletonRenderer, MeshRenderer
 from ..utils.geometry import aa_to_rotmat, perspective_projection
 from ..utils.pylogger import get_pylogger

@@ -20,7 +20,7 @@ class TokenHMRPredictor(HMR2018Predictor):
     def __init__(self, cfg) -> None:
         super().__init__(cfg)
         # Setup our new model
-        from lib.models import load_tokenhmr
+        from tokenhmr.lib.models import load_tokenhmr
 
         # Load checkpoints
         model, _ = load_tokenhmr(checkpoint_path=cfg.checkpoint, \

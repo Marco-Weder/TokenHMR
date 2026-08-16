@@ -26,12 +26,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-try:
-    # Stage-1 tokenizer training runs with cwd=tokenization/, so `utils` is top-level.
-    from utils.utils_model import codebook_usage_stats
-except ModuleNotFoundError:
-    # Imported as a package from TokenHMR (stage 2): `tokenization` is on sys.path.
-    from tokenization.utils.utils_model import codebook_usage_stats
+from tokenization.utils.utils_model import codebook_usage_stats
 
 
 def round_ste(z: torch.Tensor) -> torch.Tensor:

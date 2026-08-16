@@ -4,22 +4,23 @@ os.environ['PYOPENGL_PLATFORM'] = 'egl' #'osmesa'
 from pathlib import Path
 import traceback
 from typing import Optional
-from lib.utils import Evaluator, recursive_to
+from tokenhmr.lib.utils import Evaluator, recursive_to
 import pandas as pd
 import cv2
 import numpy as np
 import torch
 from filelock import FileLock
 import smplx
-from lib.configs import dataset_eval_config
-from lib.datasets import create_dataset
+from repro import paths
+from tokenhmr.lib.configs import dataset_eval_config
+from tokenhmr.lib.datasets import create_dataset
 
 from tqdm import tqdm
-from lib.models import load_tokenhmr
-from lib.utils import MeshRenderer
-from lib.models.smpl_wrapper import SMPL
-from lib.utils.token_metrics import compute_token_metrics, _get_gt_encoder
-from lib.utils.geometry import aa_to_rotmat
+from tokenhmr.lib.models import load_tokenhmr
+from tokenhmr.lib.utils import MeshRenderer
+from tokenhmr.lib.models.smpl_wrapper import SMPL
+from tokenhmr.lib.utils.token_metrics import compute_token_metrics, _get_gt_encoder
+from tokenhmr.lib.utils.geometry import aa_to_rotmat
 
 def main():
     parser = argparse.ArgumentParser(description='Evaluate trained models')
@@ -27,13 +28,19 @@ def main():
     parser.add_argument('--model_config', type=str, default='model_config.yaml', help='Path to model config file')
     parser.add_argument('--results_file', type=str, default='eval_regression.csv', help='Path to results file.')
     parser.add_argument('--dataset', type=str, default='EMDB, 3DPW-TEST', help='Dataset to evaluate') 
-    parser.add_argument('--dataset_dir', type=str, default='', help='Dataset folder')
+    parser.add_argument('--dataset_dir', type=str, default=None,
+                        help='Evaluation data folder '
+                             '(default: <project root>/dataset_dir/evaluation_data)')
     parser.add_argument('--batch_size', type=int, default=1, help='Batch size for inference')
     parser.add_argument('--num_samples', type=int, default=1, help='Number of test samples to draw')
     parser.add_argument('--num_workers', type=int, default=4, help='Number of workers used for data loading')
     parser.add_argument('--log_freq', type=int, default=10, help='How often to log results')
     parser.add_argument('--shuffle', dest='shuffle', action='store_true', default=False, help='Shuffle the dataset during evaluation')
-    parser.add_argument('--exp_name', type=str, default=None, help='Experiment name')
+    parser.add_argument('--exp_name', type=str, default=None, required=True,
+                        help='Experiment name; names the results directory')
+    parser.add_argument('--out_dir', type=str, default=None,
+                        help='Directory for results and renders '
+                             '(default: <project root>/results/release/<exp_name>)')
     parser.add_argument('--render', action='store_true')
     parser.add_argument('--decode_mode', type=str, default='soft', choices=['soft', 'hard'],
                         help="Token decoding at inference: 'soft' (softmax-weighted codebook mix) "
@@ -41,8 +48,16 @@ def main():
 
     args = parser.parse_args()
 
-    exp_name = 'eval' if args.exp_name is None else args.exp_name
-    results_dir = f'results/release/{exp_name}'
+    # --exp_name used to default to 'eval', so unnamed evaluations all appended
+    # to one file and overwrote each other's provenance. It is required now.
+    if not args.exp_name:
+        parser.error("--exp_name is required, it names the results directory")
+    # Used to default to '', which made every dataset path relative to the
+    # working directory and required eval.py to be launched from one place.
+    if args.dataset_dir is None:
+        args.dataset_dir = str(paths.DATASET_DIR / "evaluation_data")
+    exp_name = args.exp_name
+    results_dir = args.out_dir or str(paths.RELEASE_DIR / exp_name)
     render_dir = f'{results_dir}/render'
     os.makedirs(results_dir, exist_ok=True)
     os.makedirs(render_dir, exist_ok=True)

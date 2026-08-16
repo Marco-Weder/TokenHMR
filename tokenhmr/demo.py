@@ -7,10 +7,10 @@ import numpy as np
 import tqdm
 os.environ['PYOPENGL_PLATFORM'] = 'egl'
 
-from lib.models import load_tokenhmr
-from lib.utils import recursive_to
-from lib.datasets.vitdet_dataset import ViTDetDataset, DEFAULT_MEAN, DEFAULT_STD
-from lib.utils.renderer import Renderer, cam_crop_to_full
+from tokenhmr.lib.models import load_tokenhmr
+from tokenhmr.lib.utils import recursive_to
+from tokenhmr.lib.datasets.vitdet_dataset import ViTDetDataset, DEFAULT_MEAN, DEFAULT_STD
+from tokenhmr.lib.utils.renderer import Renderer, cam_crop_to_full
 
 LIGHT_BLUE=(0.65098039,  0.74117647,  0.85882353)
 
@@ -38,7 +38,7 @@ def main():
 
     # Load detector
     from detectron2.engine.defaults import DefaultPredictor
-    from lib.utils.utils_detectron2 import DefaultPredictor_Lazy
+    from tokenhmr.lib.utils.utils_detectron2 import DefaultPredictor_Lazy
     from detectron2.config import LazyConfig
     import lib
     cfg_path = Path(lib.__file__).parent/'configs'/'cascade_mask_rcnn_vitdet_h_75ep.py'

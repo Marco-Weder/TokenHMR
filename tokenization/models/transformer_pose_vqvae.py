@@ -33,26 +33,12 @@ from .quantize_cnn import QuantizeEMAReset
 from .fsq import FSQQuantizer
 from .rotation_utils import matrix_to_rotation_6d, rotation_6d_to_matrix, matrix_to_axis_angle
 
-# Skeleton attention mask for USE_SKELETON_MASK. Two import paths: `utils.skeleton` when
-# training from tokenization/ (train_poseVQ.py), `tokenization.utils.skeleton` when this module
-# is imported from the TokenHMR side (token_classifier -> TransformerDecodeTokens).
-try:
-    from utils.skeleton import build_skeleton_attention_mask
-except ImportError:
-    from tokenization.utils.skeleton import build_skeleton_attention_mask
+from tokenization.utils.skeleton import build_skeleton_attention_mask
 
-# Import `pose_transformer` via a path that bypasses `tokenhmr/lib/models/__init__.py`.
-# Going through that __init__ triggers a circular import when this module is loaded
-# from inside TokenHMR initialization (lib/models → heads → token_classifier → here →
-# back to lib/models, which is still partially initialised). Inserting
-# `tokenhmr/lib/models/` directly lets us import `components.pose_transformer` as a
-# top-level package, skipping the parent __init__ entirely. The `components/__init__.py`
-# is empty and `pose_transformer.py`'s only relative import (`.t_cond_mlp`) stays valid
-# because it's a sibling inside the `components` package.
-_models_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../tokenhmr/lib/models'))
-if _models_dir not in sys.path:
-    sys.path.insert(0, _models_dir)
-from components.pose_transformer import (
+# Import the submodule directly rather than through tokenhmr.lib.models, whose
+# __init__ imports the heads, which import this module back. Naming the submodule
+# skips that parent __init__ and so avoids the cycle.
+from tokenhmr.lib.models.components.pose_transformer import (
     TransformerEncoder,
     TransformerCrossAttn,
     CrossAttention,
@@ -119,7 +105,7 @@ class TransformerTokenizer(nn.Module):
         self.add_noise = add_noise
         self.step_multiplier_mapping = step_multiplier_mapping()
         if self.add_noise:
-            from utils.skeleton import get_smplx_body_parts
+            from tokenization.utils.skeleton import get_smplx_body_parts
             self.smplx_body_parts = get_smplx_body_parts()
 
         self.num_tokens = getattr(arch_params, 'NUM_TOKENS', 160)

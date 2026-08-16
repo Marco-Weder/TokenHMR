@@ -7,9 +7,9 @@ import torch
 import pickle as pkl
 import wandb
 
-from utils.pose_visualize import visualize_from_mesh
-from utils.rotation_conversions import axis_angle_to_matrix
-from utils.utils_model import codebook_usage_stats
+from tokenization.utils.pose_visualize import visualize_from_mesh
+from tokenization.utils.rotation_conversions import axis_angle_to_matrix
+from tokenization.utils.utils_model import codebook_usage_stats
 from torch.utils.tensorboard import SummaryWriter
 
 # Per-joint distance thresholds (metres) for PCK reconstruction accuracy.
@@ -124,9 +124,9 @@ def eval_pose_vqvae(hparams, val_loader, net, logger, writer, nb_iter, out_dir, 
     total_counts = None
 
     if hparams.ARCH.MODEL_NAME in ('vanilla', 'vanilla-v1'):
-        from models.vanilla_pose_vqvae import body_model
+        from tokenization.models.vanilla_pose_vqvae import body_model
     else:
-        from models.transformer_pose_vqvae import body_model
+        from tokenization.models.transformer_pose_vqvae import body_model
 
     with torch.no_grad():
         for batch_idx, batch in enumerate(tqdm.tqdm(val_loader)):

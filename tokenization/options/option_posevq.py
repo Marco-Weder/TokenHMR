@@ -12,7 +12,7 @@ from functools import reduce
 from typing import Dict, List, Union, Any
 from flatten_dict import flatten, unflatten
 
-from utils.cluster import execute_task_on_cluster
+from tokenization.utils.cluster import execute_task_on_cluster
 
 hparams = CN()
 

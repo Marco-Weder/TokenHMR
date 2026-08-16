@@ -28,7 +28,29 @@ _LEGACY_ROOTS = (
     "/home/marco/thesis-HMR",
 )
 
+# Directory names that only ever appear at the top of this project. A config
+# value starting with one of these was written to be read from the project root,
+# so it is anchored there rather than at whatever the working directory happens
+# to be.
+_PROJECT_RELATIVE = (
+    "data/",
+    "dataset_dir/",
+    "logs/",
+    "results/",
+    "tokenization/output/",
+    "tokenization_data/",
+)
+
 _warned = False
+
+
+def anchor_relative(value: Any) -> Any:
+    """Anchor a project-relative path at the project root."""
+    if not isinstance(value, str) or not value or os.path.isabs(value):
+        return value
+    if value.startswith(_PROJECT_RELATIVE):
+        return os.path.join(str(PROJECT_ROOT), value)
+    return value
 
 
 def rewrite_legacy_path(value: Any) -> Any:
@@ -67,7 +89,7 @@ def rewrite_cfg(cfg) -> None:
         if hasattr(value, "keys"):
             rewrite_cfg(value)
         elif isinstance(value, str):
-            cfg[key] = rewrite_legacy_path(value)
+            cfg[key] = anchor_relative(rewrite_legacy_path(value))
         elif isinstance(value, (list, tuple)):
-            rewritten = [rewrite_legacy_path(v) for v in value]
+            rewritten = [anchor_relative(rewrite_legacy_path(v)) for v in value]
             cfg[key] = type(value)(rewritten)

@@ -31,7 +31,8 @@ class WeightedMSE(nn.Module):
     def __init__(self, weights, reduction='mean'):
         super(WeightedMSE, self).__init__()
 
-        self.register_buffer('weights', torch.tensor(weights, dtype=torch.float32).cuda())
+        w = torch.tensor(weights, dtype=torch.float32)
+        self.register_buffer('weights', w.cuda() if torch.cuda.is_available() else w)
         self.reduction = reduction
 
     def forward(self, input, target):

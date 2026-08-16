@@ -2,11 +2,12 @@ import torch
 from torch.utils import data
 import numpy as np
 import os
+from pathlib import Path
 from os.path import join as pjoin
 import tqdm
 from smplx import SMPLH, SMPLX
-from utils.rotation_conversions import axis_angle_to_matrix
-from utils.skeleton import get_smplx_body_parts
+from tokenization.utils.rotation_conversions import axis_angle_to_matrix
+from tokenization.utils.skeleton import get_smplx_body_parts
 
 def get_dataloader(hparams, split, shuffle=True):
 
@@ -75,10 +76,30 @@ class MixedTrainDataset(data.Dataset):
     def __len__(self):
         return self.length
 
+def _resolve_data_root(data_root):
+    """Find the pose data without depending on the working directory.
+
+    Configs give DATA.DATA_ROOT as a relative path because training was always
+    launched from tokenization/. It is resolved here against that directory and
+    the project root, so an analysis can be run from anywhere.
+    """
+    from repro import paths
+
+    if not data_root:
+        return data_root
+    candidate = Path(data_root)
+    if candidate.is_absolute():
+        return str(candidate)
+    for base in (paths.TOKENIZER_OUT.parent, paths.PROJECT_ROOT, Path.cwd()):
+        if (base / candidate).is_dir():
+            return str(base / candidate)
+    return str(candidate)
+
+
 class VQPoseDataset(data.Dataset):
     def __init__(self, dt, split= 'train', data_root='', rot_type = 'rotmat', smpl_type= 'smplx', mask_body_parts = False, debug = False, cache_smpl=True):
 
-        self.data_root = pjoin(data_root, smpl_type, split)
+        self.data_root = pjoin(_resolve_data_root(data_root), smpl_type, split)
         self.joints_num = 21
         self.smplx_body_parts = get_smplx_body_parts()
         self.mask_body_parts = mask_body_parts
