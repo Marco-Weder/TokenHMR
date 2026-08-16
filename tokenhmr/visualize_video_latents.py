@@ -179,8 +179,7 @@ def detect_and_track(video, n_frames, stride, det_size, score_thr, iou_thr, max_
     import detectron2.data.transforms as T
     from detectron2.config import LazyConfig
     from tokenhmr.lib.utils.utils_detectron2 import DefaultPredictor_Lazy
-    import lib
-
+    import tokenhmr.lib as lib
     cfg_path = Path(lib.__file__).parent / 'configs' / 'cascade_mask_rcnn_vitdet_h_75ep.py'
     d2_cfg = LazyConfig.load(str(cfg_path))
     d2_cfg.train.init_checkpoint = ('https://dl.fbaipublicfiles.com/detectron2/ViTDet/COCO/'
@@ -363,7 +362,11 @@ def run_inference(video, boxes, valid, stride, ckpt, model_config, batch_size, s
             bp = out['pred_smpl_params']['body_pose'].float()
             with torch.no_grad():
                 te = enc.encode(bp[:, :enc.num_joints])
-                lat = enc._encode_continuous(bp[:, :enc.num_joints])
+                # The pre-quantisation latent is a transformer-tokenizer hook. The
+                # vanilla convolutional tokenizer has no equivalent, so the latent
+                # panels are simply unavailable for it and the rest still works.
+                lat = (enc._encode_continuous(bp[:, :enc.num_joints])
+                       if hasattr(enc, '_encode_continuous') else None)
             tp = out['cls_logits'][-B:].argmax(-1)
 
             verts[f, n_slots] = out['pred_vertices'].detach().cpu().numpy().astype(np.float16)
@@ -373,7 +376,7 @@ def run_inference(video, boxes, valid, stride, ckpt, model_config, batch_size, s
             betas[f, n_slots] = out['pred_smpl_params']['betas'].float().cpu().numpy()
             tok_enc[f, n_slots]  = te.cpu().numpy()
             tok_pred[f, n_slots] = tp.cpu().numpy()
-            if 0 in n_slots:
+            if lat is not None and 0 in n_slots:
                 latent[f] = lat[int(np.nonzero(n_slots == 0)[0][0])].cpu().numpy()
     cap.release()
 
@@ -405,7 +408,7 @@ def run_inference(video, boxes, valid, stride, ckpt, model_config, batch_size, s
                 so = model.smpl(global_orient=go, body_pose=bp, betas=be, pose2rot=False)
                 verts[f, idx_n] = so.vertices.cpu().numpy().astype(np.float16)
                 tok_enc[f, idx_n] = enc.encode(bp[:, :enc.num_joints]).cpu().numpy()
-                if 0 in idx_n:
+                if 0 in idx_n and hasattr(enc, '_encode_continuous'):
                     i0 = int(np.nonzero(idx_n == 0)[0][0])
                     latent[f] = enc._encode_continuous(bp[:, :enc.num_joints])[i0].cpu().numpy()
 

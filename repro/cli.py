@@ -177,6 +177,12 @@ def cmd_figure(args) -> int:
     return 0
 
 
+def cmd_compare_video(args) -> int:
+    from tokenhmr import compare_video
+
+    return compare_video.main(args.rest)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="thesis", description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="command", required=True)
@@ -196,6 +202,10 @@ def main(argv=None) -> int:
     g = sub.add_parser("golden", help="snapshot or verify the deterministic analysis outputs")
     g.add_argument("action", choices=["record", "check"])
     g.set_defaults(func=cmd_golden)
+
+    v = sub.add_parser("compare-video", help="render the side-by-side model comparison")
+    v.add_argument("rest", nargs=argparse.REMAINDER)
+    v.set_defaults(func=cmd_compare_video)
 
     f = sub.add_parser("figure", help="render one thesis figure")
     f.add_argument("name", nargs="?", default="")

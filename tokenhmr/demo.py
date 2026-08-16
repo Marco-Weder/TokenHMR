@@ -40,7 +40,7 @@ def main():
     from detectron2.engine.defaults import DefaultPredictor
     from tokenhmr.lib.utils.utils_detectron2 import DefaultPredictor_Lazy
     from detectron2.config import LazyConfig
-    import lib
+    import tokenhmr.lib as lib
     cfg_path = Path(lib.__file__).parent/'configs'/'cascade_mask_rcnn_vitdet_h_75ep.py'
     detectron2_cfg = LazyConfig.load(str(cfg_path))
     detectron2_cfg.train.init_checkpoint = "https://dl.fbaipublicfiles.com/detectron2/ViTDet/COCO/cascade_mask_rcnn_vitdet_h/f328730692/model_final_f05665.pkl"
