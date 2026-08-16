@@ -43,7 +43,7 @@ plt.rcParams.update({
 
 ERR_COLOR = "#D55E00"       # quantization error e(z)   (vermillion)
 RHO_COLOR = "#0072B2"       # code spacing rho_k         (blue)
-TITLE = {"FSQ d4": "FSQ ($d{=}4$)", "Transformer cosine": "Cosine ($d{=}256$)"}
+TITLE = {"FSQ d4": "FSQ ($d{=}4$)", "VQ d4": "Cosine ($d{=}4$)"}
 METRIC = {"l2": "Euclidean", "cosine": "chordal"}
 
 

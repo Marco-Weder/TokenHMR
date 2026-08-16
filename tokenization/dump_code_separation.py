@@ -6,7 +6,8 @@ Reuses the exact metric and FSQ-bounding logic of analyze_codebook_geometry.geom
 so the annotated separation ratio matches Table 4.4. CPU only (the GPU is usually
 busy and the model code hardcodes .cuda() at construction).
 
-Contrast pair matches Fig 4.7: FSQ d4 (well separated) vs Transformer cosine d256
+Contrast pair matches Fig 4.7: FSQ d4 vs cosine d4, the two tokenizers at d=4, so
+the pair isolates the quantizer and matches the cosine variant used downstream.
 (near-duplicate). Run from tokenization/ in the thesis-HMR env:
     ~/miniconda3/envs/thesis-HMR/bin/python dump_code_separation.py
 
@@ -23,7 +24,7 @@ from analyze_latent_pose_info import load_net, get_codebook, _is_cosine
 from analyze_token_stability import load_pose_set
 from analyze_codebook_geometry import encode_shared, DEV, HERE, STAB, OUTDIR, NUM_POSES, SEED
 
-LABELS = ["FSQ d4", "Transformer cosine"]      # selected FSQ vs the cosine contrast
+LABELS = ["FSQ d4", "VQ d4"]      # FSQ vs the cosine tokenizer carried into Sec. 4.4 (both d=4)
 
 
 @torch.no_grad()

@@ -5,8 +5,11 @@ A scatter of label stability S(1 deg) (y, higher better) against reconstruction
 error (x, lower better), one point per tokenizer, coloured AND shaped by quantizer
 family (so it survives greyscale printing). The learned codebooks trace a
 trade-off frontier; the convolutional baseline sits below it and FSQ steps above
-it. The two tokenizers carried into token supervision (cosine d=4 and FSQ d=4)
-are ringed.
+it. The four tokenizers carried into the token-supervision comparison of
+Table 4.10 (tab:ce-tokenizer) are ringed: FSQ d=4, transformer-l2 d=256,
+convolutional-l2 d=256 and cosine d=4. Their rings descend monotonically in
+stability (63, 53, 24, 22) while their reconstruction error improves
+(2.58, 2.45, 2.27, 1.51), which is the inversion Section 4.4.5 rests on.
 
 The numbers are hard-coded from Table 4.3 (tab:token-target-quality) in
 experimentsandresults.tex -- if a cell there changes, update the P list below.
@@ -41,16 +44,16 @@ FAM = {
     "cos":  ("#009E73", "o"),   # cosine        (EMA cosine)
     "fsq":  ("#D55E00", "D"),   # FSQ
 }
-# (label, x=recon [deg/joint], y=S(1deg) [%], family, carried_forward, (dx,dy) label offset, ha, va)
+# (label, x=recon MPJPE [mm], y=S(1deg) [%], family, carried_forward, (dx,dy) label offset, ha, va)
 P = [
-    ("Conv ($\\ell_2$)", 0.40, 24, "conv", False, ( 6,  7), "left",  "bottom"),
-    ("Tf ($\\ell_2$)",   0.46, 53, "tfl2", False, ( 7,  0), "left",  "center"),
-    ("cos $d$256",       0.17, 18, "cos",  False, ( 7,  4), "left",  "bottom"),
-    ("skel-mask",        0.13, 14, "cos",  False, (-7, -3), "right", "top"),
-    ("cos $d$4",         0.29, 22, "cos",  True,  ( 8, -3), "left",  "top"),
-    ("cos $d$2",         0.11,  7, "cos",  False, ( 7,  2), "left",  "bottom"),
-    ("FSQ $d$4",         0.54, 63, "fsq",  True,  (-8,  6), "right", "bottom"),
-    ("FSQ $d$5",         0.36, 58, "fsq",  False, (-8,  6), "right", "bottom"),
+    ("Conv ($\\ell_2$)", 2.27, 24, "conv", True,  ( 6,  9), "left",  "bottom"),
+    ("Tf ($\\ell_2$)",   2.45, 53, "tfl2", True,  ( 9,  0), "left",  "center"),
+    ("cos $d$256",       0.79, 18, "cos",  False, ( 7,  4), "left",  "bottom"),
+    ("skel-mask",        0.60, 14, "cos",  False, ( 8, -3), "left",  "top"),
+    ("cos $d$4",         1.51, 22, "cos",  True,  ( 8, -3), "left",  "top"),
+    ("cos $d$2",         0.56,  7, "cos",  False, ( 7,  2), "left",  "bottom"),
+    ("FSQ $d$4",         2.58, 63, "fsq",  True,  (-8,  6), "right", "bottom"),
+    ("FSQ $d$5",         1.87, 58, "fsq",  False, (-8,  6), "right", "bottom"),
 ]
 
 fig, ax = plt.subplots(figsize=(6.6, 4.5))
@@ -68,9 +71,9 @@ for (lab, x, y, fam, cf, off, ha, va) in P:
     ax.annotate(lab, (x, y), textcoords="offset points", xytext=off, ha=ha, va=va,
                 fontsize=9, fontweight=("bold" if cf else "normal"), color="0.15")
 
-ax.set_xlabel("Reconstruction error  [$^\\circ$/joint]   (lower better)")
+ax.set_xlabel("Reconstruction MPJPE  [mm]   (lower better)")
 ax.set_ylabel("Label stability  $S(1^\\circ)$  [%]   (higher better)")
-ax.set_xlim(0.08, 0.585)
+ax.set_xlim(0.35, 2.85)
 ax.set_ylim(0, 70)
 ax.grid(True, color="0.9", lw=0.7, zorder=0)
 ax.set_axisbelow(True)

@@ -5,7 +5,9 @@ for its nearest codebook neighbour (the per-token counterpart of the redundancy
 Delta_NN) and colour each mesh vertex by how far it moved. On a well-separated
 codebook (FSQ) this deforms a limb; on a near-duplicate one (cosine) it barely moves.
 
-  - Fig 4.7: FSQ (d=4) vs cosine (d256), same shared vmax -> the contrast.
+  - Fig 4.7: FSQ (d=4) vs cosine (d=4), same shared vmax -> the contrast. Both are
+    d=4 so the pair isolates the quantizer, and cosine d4 is the variant carried
+    into Sec. 4.4 (tab:ce-tokenizer).
   - Fig B.2: all eight tokenizers on the same pose and vmax.
 
 Decode/SMPL on CPU (GPU busy); pyrender does the small offscreen render on the GPU.
@@ -57,6 +59,8 @@ SHORT = {"CNN": "Conv ($\\ell_2$)", "Transformer tier1": "Transformer ($\\ell_2$
          "VQ d4": "Cosine $d$4", "VQ d2": "Cosine $d$2", "FSQ d4": "FSQ $d$4", "FSQ d5": "FSQ $d$5"}
 ORDER = ["CNN", "Transformer tier1", "Transformer cosine", "Skeleton-masked",
          "VQ d4", "VQ d2", "FSQ d4", "FSQ d5"]
+if os.environ.get("TOKVIZ_LABELS"):                 # e.g. "FSQ d4|VQ d4" to compute only the contrast
+    ORDER = os.environ["TOKVIZ_LABELS"].split("|")
 
 
 # ----------------------------- rendering (from visualize_token_effects) -----------------------------
@@ -122,7 +126,24 @@ def best_swap_dv(net, pose):
 
 
 # ----------------------------- pose pick -----------------------------
+# The displayed pose is chosen for legibility, not to maximise the effect: the pose
+# swept in dump_token_viz_candidates.py that reads most clearly as a body and isolates
+# the swap on one limb. Set TOKVIZ_POSE_IDX to that candidate's index to reproduce the
+# figure exactly; the quantitative claim rests on Delta_NN (Table 4.3), not on this pose.
+CAND_NPZ = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "output", "token_viz", "pose_candidates.npz")
+
+
 def pick_pose(hparams, n_cand=24, seed=1):
+    if os.environ.get("TOKVIZ_POSE_IDX"):
+        i = int(os.environ["TOKVIZ_POSE_IDX"])
+        pose = torch.tensor(np.load(CAND_NPZ, allow_pickle=True)[f"pose_{i}"])
+        print(f"using candidate pose {i} from {CAND_NPZ}")
+        return pose
+    return _pick_pose_by_extent(hparams, n_cand, seed)
+
+
+def _pick_pose_by_extent(hparams, n_cand=24, seed=1):
     from dataset.dataset_poseVQ import get_dataloader
     torch.manual_seed(seed)
     hparams.DATA.NUM_WORKERS = min(getattr(hparams.DATA, "NUM_WORKERS", 4), 4)
@@ -160,9 +181,25 @@ def main():
     vmax = float(np.percentile(data["FSQ d4"][1], 98))               # shared scale from FSQ d4
     print(f"shared vmax = {vmax:.1f} mm")
 
+    # Dump geometry BEFORE rendering, so the Blender renderer
+    # (thesis_figures/render_token_viz_blender.py) can reuse it without recomputing,
+    # and so a GPU/EGL failure below cannot lose the expensive CPU work.
+    dump = {"faces": FACES, "vmax": np.array(vmax), "labels": np.array(json.dumps(ORDER))}
+    for lab in ORDER:
+        b, d = data[lab]
+        dump[f"base_{lab}"] = b; dump[f"dv_{lab}"] = d
+    dpath = os.path.join(HERE, "output", "token_viz", "swap_geometry.npz")
+    os.makedirs(os.path.dirname(dpath), exist_ok=True)
+    np.savez_compressed(dpath, **dump)
+    print(f"wrote {dpath}")
+
+    if os.environ.get("TOKVIZ_DUMP_ONLY"):
+        # geometry only; thesis_figures/render_token_viz_blender.py draws the figures
+        return
+
     # ---- Fig 4.7: FSQ vs cosine contrast ----
     fig, ax = plt.subplots(1, 2, figsize=(5.6, 3.4))
-    for a, label in zip(ax, ["FSQ d4", "Transformer cosine"]):
+    for a, label in zip(ax, ["FSQ d4", "VQ d4"]):
         base, dv = data[label]
         a.imshow(render_error(base, dv, vmax)); a.axis("off")
         a.set_title(f"{SHORT[label]}   (max $\\delta_v$ {dv.max():.0f} mm)", fontsize=9)

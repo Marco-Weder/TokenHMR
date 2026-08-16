@@ -132,6 +132,7 @@ def scan(args):
 
     print(f'[scan] {args.scan} frames of {args.dataset} for a legible failure', flush=True)
     best = None
+    shortlist = []
     for i, batch in enumerate(loader):
         if i >= args.scan:
             break
@@ -171,12 +172,16 @@ def scan(args):
             artic = float(torch.rad2deg(torch.acos(((tr - 1) / 2).clamp(-1, 1))).mean())
             score = gap * min(artic / args.min_artic, 1.0)
 
+        cand = dict(gap=gap, score=score, artic=artic, idx=i,
+                    v_gt=v_gt.cpu().numpy(), v_s=v_s.cpu().numpy(), v_h=v_h.cpu().numpy(),
+                    e_s=e_s.cpu().numpy(), e_h=e_h.cpu().numpy(),
+                    pve_s=float(e_s.mean()), pve_h=float(e_h.mean()),
+                    logits=out_s['cls_logits'][-1].float().cpu().numpy())
+        shortlist.append(cand)
+        shortlist.sort(key=lambda c: -c['score'])
+        del shortlist[args.keep:]
         if best is None or score > best['score']:
-            best = dict(gap=gap, score=score, artic=artic, idx=i,
-                        v_gt=v_gt.cpu().numpy(), v_s=v_s.cpu().numpy(), v_h=v_h.cpu().numpy(),
-                        e_s=e_s.cpu().numpy(), e_h=e_h.cpu().numpy(),
-                        pve_s=float(e_s.mean()), pve_h=float(e_h.mean()),
-                        logits=out_s['cls_logits'][-1].float().cpu().numpy())
+            best = cand
         if (i + 1) % 10 == 0:
             print(f'  {i+1}/{args.scan}  best: gap {best["gap"]:.0f} mm, '
                   f'articulation {best["artic"]:.0f} deg (frame {best["idx"]})', flush=True)
@@ -190,6 +195,19 @@ def scan(args):
              e_s=best['e_s'], e_h=best['e_h'], logits=best['logits'],
              pve_s=best['pve_s'], pve_h=best['pve_h'], idx=best['idx'], faces=faces)
     print(f'[cache] {CACHE}', flush=True)
+
+    # Keep the top `--keep` frames as well, so the figure's frame can be chosen by eye
+    # rather than by the score alone (thesis_figures/render_decode_candidates.py).
+    multi = {'n': len(shortlist), 'faces': faces}
+    for j, c in enumerate(shortlist):
+        for k in ('v_gt', 'v_s', 'v_h', 'e_s', 'e_h', 'logits'):
+            multi[f'{k}_{j}'] = c[k]
+        multi[f'meta_{j}'] = np.array([c['idx'], c['pve_s'], c['pve_h'], c['artic'], c['gap']])
+    np.savez(str(CACHE).replace('.npz', '_candidates.npz'), **multi)
+    print(f"[cache] {str(CACHE).replace('.npz', '_candidates.npz')}  ({len(shortlist)} candidates)", flush=True)
+    for j, c in enumerate(shortlist):
+        print(f"  cand {j}: frame {c['idx']:5d}  soft {c['pve_s']:6.1f} mm  hard {c['pve_h']:6.1f} mm  "
+              f"artic {c['artic']:4.0f} deg  gap {c['gap']:6.1f}", flush=True)
 
 
 def plot(args):
@@ -284,6 +302,8 @@ if __name__ == '__main__':
     ap.add_argument('--device', default='cpu')
     ap.add_argument('--scan', type=int, default=40)
     ap.add_argument('--topk', type=int, default=12)
+    ap.add_argument('--keep', type=int, default=8,
+                    help='how many top-scoring frames to cache for visual selection')
     ap.add_argument('--azim', type=float, default=0.0)
     ap.add_argument('--min_artic', type=float, default=28.0,
                     help='GT articulation (mean deg from rest pose) treated as "fully active"')
